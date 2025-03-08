@@ -114,7 +114,7 @@ if [ -d "$VAULT_DIR" ]; then
   temp_file=$(mktemp)
   
   # 모든 마크다운 파일 찾기
-  find "$VAULT_DIR" -type f -name "*.md" -print0 | while IFS= read -r -d $'\0' file; do
+  find "$VAULT_DIR" -type f -name "*.md" -print0 | while IFS= read -r -d $'' file; do
     # 파일의 처음 3줄만 검사
     if head -n 3 "$file" | grep -q "$PUBLISH_TAG"; then
       echo "$file" >> "$temp_file"
@@ -143,7 +143,8 @@ done
 publish_titles=()
 # IFS 변경으로 파일명에 공백이 있는 경우 처리
 OLDIFS="$IFS"
-IFS=$'\n'
+IFS=$'
+'
 to_publish_array=($to_publish_files)
 IFS="$OLDIFS"
 
@@ -352,9 +353,9 @@ $content_without_title"
       
       # 이미지 경로 업데이트 - Hugo 방식으로 (macOS sed 호환성 수정)
       if [ -n "$img_alt" ] && [ "$img_alt" != " " ]; then
-        sed -i '' "s|!\\[.*\\]($img)|{{< image src=\"images/blog/$img_name\" caption=\"$img_alt\" >}}|g" "$output_file" 2>/dev/null || true
+        sed -i '' "s|!\[.*\]($img)|{{< image src=\"images/blog/$img_name\" caption=\"$img_alt\" >}}|g" "$output_file" 2>/dev/null || true
       else
-        sed -i '' "s|!\\[.*\\]($img)|{{< image src=\"images/blog/$img_name\" >}}|g" "$output_file" 2>/dev/null || true
+        sed -i '' "s|!\[.*\]($img)|{{< image src=\"images/blog/$img_name\" >}}|g" "$output_file" 2>/dev/null || true
       fi
     fi
   done

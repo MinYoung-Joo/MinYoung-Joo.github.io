@@ -114,7 +114,7 @@ if [ -d "$VAULT_DIR" ]; then
   temp_file=$(mktemp)
   
   # 모든 마크다운 파일 찾기
-  find "$VAULT_DIR" -type f -name "*.md" -print0 | while IFS= read -r -d $'' file; do
+  find "$VAULT_DIR" -type f -name "*.md" -print0 | while IFS= read -r -d $'\0' file; do
     # 파일의 처음 3줄만 검사
     if head -n 3 "$file" | grep -q "$PUBLISH_TAG"; then
       echo "$file" >> "$temp_file"
@@ -143,8 +143,7 @@ done
 publish_titles=()
 # IFS 변경으로 파일명에 공백이 있는 경우 처리
 OLDIFS="$IFS"
-IFS=$'
-'
+IFS=$'\n'
 to_publish_array=($to_publish_files)
 IFS="$OLDIFS"
 
@@ -228,12 +227,11 @@ for file in "${to_publish_array[@]}"; do
   file_content=$(cat "$file")
   
   # 파일 내용에서 모든 줄에 대해 이미지 검사
-  IFS=$'
-'
+  IFS=$'\n'
   for line in $file_content; do
     # 옵시디언 위키 링크 스타일 이미지 ([[ ]] 패턴)
     if [[ "$line" == *"![["* && "$line" == *"]]"* ]]; then
-      img_path=$(echo "$line" | awk -F'!\[\[|\]\]' '{print $2}')
+      img_path=$(echo "$line" | awk -F'!\\[\\[|\\]\\]' '{print $2}')
       if [ -n "$img_path" ]; then
         img_name=$(basename "$img_path")
         if [ -n "$img_name" ] && [ "$img_name" != " " ]; then
@@ -253,7 +251,7 @@ for file in "${to_publish_array[@]}"; do
       fi
     # 마크다운 이미지 링크 스타일 (![](URL) 패턴)
     elif [[ "$line" == *"!["* && "$line" == *"]("* && "$line" == *")"* ]]; then
-      img_path=$(echo "$line" | awk -F'\]\(|\)' '{print $2}')
+      img_path=$(echo "$line" | awk -F'\\]\\(|\\)' '{print $2}')
       if [ -n "$img_path" ] && [[ "$img_path" != "http"* ]]; then
         img_name=$(basename "$img_path")
         if [ -n "$img_name" ] && [ "$img_name" != " " ]; then
@@ -276,10 +274,10 @@ for file in "${to_publish_array[@]}"; do
   # attachments 디렉토리에서 파일 이름으로 이미지 찾기 (이름으로 검색)
   if [ -z "$image_line" ] && [ -d "$VAULT_DIR/attachments" ]; then
     # 파일에서 "![[" 패턴 검색
-    image_pattern=$(grep -o "!\[\[.*\]\]" "$file" | head -n 1)
+    image_pattern=$(grep -o "!\\[\\[.*\\]\\]" "$file" | head -n 1)
     if [ -n "$image_pattern" ]; then
       # 패턴에서 파일 이름 추출 시도
-      potential_img_name=$(echo "$image_pattern" | sed 's/!\[\[\(.*\)\]\]/\1/')
+      potential_img_name=$(echo "$image_pattern" | sed 's/!\\[\\[\(.*\)\\]\\]/\1/')
       if [ -n "$potential_img_name" ]; then
         # attachments 디렉토리에서 파일 검색
         find "$VAULT_DIR/attachments" -type f -name "*$potential_img_name*" | head -n 1 | while read -r img_file; do
@@ -372,9 +370,9 @@ $content_without_title"
     # 각 이미지에 대해 링크 변환
     for img in $image_files; do
       # 옵시디언 위키 링크 스타일
-      sed -i '' "s|!\[\[$img\]\]|{{< image src=\"images/blog/$img\" >}}|g" "$output_file" 2>/dev/null || true
+      sed -i '' "s|!\\[\\[$img\\]\\]|{{< image src=\"images/blog/$img\" >}}|g" "$output_file" 2>/dev/null || true
       # 마크다운 링크 스타일
-      sed -i '' "s|!\[.*\]($img)|{{< image src=\"images/blog/$img\" >}}|g" "$output_file" 2>/dev/null || true
+      sed -i '' "s|!\\[.*\\]($img)|{{< image src=\"images/blog/$img\" >}}|g" "$output_file" 2>/dev/null || true
     done
   fi
   
@@ -488,8 +486,7 @@ which hugo  # Hugo 경로 확인
 
 이 방법을 통해 옵시디언에서 작성한 노트 중 원하는 것만 선택적으로 Hugo 블로그로 발행할 수 있습니다. `` 태그만 추가하고 단축키 한 번으로 발행 과정이 자동화되어 편리하게 블로그를 관리할 수 있습니다.
 
-{{< image src="images/blog/screenshot_hu14038609273344937620.png" >}}
-
+{{< image src="images/blog/screenshot_hu14.png" >}}
 ### 참고
 * https://themes.gohugo.io/themes/hugoplate/
 * https://gohugo.io/getting-started/usage/

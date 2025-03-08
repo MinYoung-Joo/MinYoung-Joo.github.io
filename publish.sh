@@ -26,7 +26,7 @@ echo "선택적 발행 시작: $PUBLISH_TAG 태그가 있는 노트만 발행합
 # 발행된 노트 목록 수집
 echo "현재 발행된 파일 목록 수집 중..."
 if [ -d "$TARGET_DIR" ]; then
-  published_files=$(find "$TARGET_DIR" -type f -name "*.md" | sort)
+  published_files=$(find "$TARGET_DIR" -type f -name "*.md" 2>/dev/null || echo "")
 else
   published_files=""
 fi
@@ -41,26 +41,55 @@ else
   exit 1
 fi
 
-# 발행할 파일이 없으면 종료
-if [ -z "$to_publish_files" ]; then
-  echo "발행할 노트가 없습니다."
-  exit 0
-fi
-
-# 기존 노트에서 제목과 파일명 매핑 생성
-declare -A published_title_map
+# 현재 발행된 파일의 제목 목록 만들기
+current_titles=()
 for file in $published_files; do
-  base_name=$(basename "$file" .md)
-  if grep -q "^title:" "$file"; then
-    title=$(grep -m 1 "^title:" "$file" | sed 's/^title: *"\(.*\)".*$/\1/')
-    published_title_map["$title"]="$file"
+  if [ -f "$file" ]; then
+    title=$(grep -m 1 "^title:" "$file" 2>/dev/null | sed 's/^title: *"\(.*\)".*$/\1/' || basename "$file" .md)
+    current_titles+=("$title")
   fi
 done
 
-# 발행 취소할 노트 확인
-# 현재는 생략하고 새로 발행하는 것에 집중
+# 발행할 파일의 제목 목록 만들기
+publish_titles=()
+for file in $to_publish_files; do
+  if [ -f "$file" ]; then
+    content=$(cat "$file" 2>/dev/null || echo "")
+    if [[ $content == \#* ]]; then
+      title=$(echo "$content" | head -n 1 | sed 's/^# //')
+    elif grep -q "^title:" <<<"$content"; then
+      title=$(grep -m 1 "^title:" <<<"$content" | sed 's/^title: *"\(.*\)".*$/\1/')
+    else
+      title="${file##*/}"
+      title="${title%.md}"
+    fi
+    publish_titles+=("$title")
+  fi
+done
 
-# 발행할 노트 처리
+# 발행 취소할 파일 찾기
+for file in $published_files; do
+  if [ -f "$file" ]; then
+    title=$(grep -m 1 "^title:" "$file" 2>/dev/null | sed 's/^title: *"\(.*\)".*$/\1/' || basename "$file" .md)
+    should_unpublish=true
+    
+    # 이 제목이 publish_titles에 있는지 확인
+    for publish_title in "${publish_titles[@]}"; do
+      if [ "$title" = "$publish_title" ]; then
+        should_unpublish=false
+        break
+      fi
+    done
+    
+    # 발행 취소
+    if [ "$should_unpublish" = true ]; then
+      echo "발행 취소: $title"
+      rm -f "$file"
+    fi
+  fi
+done
+
+# 발행 또는 업데이트할 노트 처리
 for file in $to_publish_files; do
   # 파일 존재 확인
   if [ ! -f "$file" ]; then
@@ -72,7 +101,7 @@ for file in $to_publish_files; do
   filename=$(basename "$file")
   
   # 내용 읽기
-  content=$(cat "$file")
+  content=$(cat "$file" 2>/dev/null || echo "")
   
   # 제목 추출
   if [[ $content == \#* ]]; then
@@ -83,19 +112,24 @@ for file in $to_publish_files; do
     title="${filename%.md}"
   fi
   
-  # 한글 제목을 파일명으로 사용 (확장자 추가)
+  # 제목에서 특수문자 제거
   safe_title=$(echo "$title" | tr -d '"')
   output_filename="${safe_title}.md"
   output_file="$TARGET_DIR/$output_filename"
   
-  echo "처리 중: $title -> $output_filename"
+  # 발행 상태 확인
+  if [ -f "$output_file" ]; then
+    echo "업데이트: $title"
+  else
+    echo "새로 발행: $title"
+  fi
   
   # PUBLISH_TAG 제거
   content=$(echo "$content" | sed "s/$PUBLISH_TAG//g")
   
   # 프론트매터 처리
   if [[ $content == ---* ]]; then
-    # 프론트매터가 있는 경우
+    # 프론트매터와 본문 분리
     front_matter=$(echo "$content" | awk 'BEGIN{flag=0} /^---/{flag++; print; next} flag==1{print} flag==2{exit}')
     rest_content=$(echo "$content" | awk 'BEGIN{flag=0} /^---/{flag++} flag==2{print}' | tail -n +2)
     
@@ -180,7 +214,7 @@ $content_without_title"
   done
 done
 
-echo "발행 작업 완료: $PUBLISH_TAG 태그가 있는 노트를 발행했습니다."
+echo "발행 작업 완료: $PUBLISH_TAG 태그가 있는 노트를 발행하고, 태그가 제거된 노트는 발행 취소했습니다."
 
 # 변경사항 Git에 커밋 및 푸시
 echo "변경사항 Git에 커밋 및 푸시 중..."

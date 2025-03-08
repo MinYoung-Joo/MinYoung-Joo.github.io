@@ -471,6 +471,6 @@ which hugo  # Hugo 경로 확인
 {{< image src="images/blog/screenshot_hu14038609273344937620.png" >}}
 
 ### 참고
-* https://themes.gohugo.io/themes/hugoplate/
+https://themes.gohugo.io/themes/hugoplate/
 * https://gohugo.io/getting-started/usage/
 * https://themes.gohugo.io/themes/hugoplate/

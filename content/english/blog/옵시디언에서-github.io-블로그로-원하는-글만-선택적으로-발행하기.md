@@ -2,13 +2,14 @@
 title: "옵시디언에서 github.io 블로그로 원하는 글만 선택적으로 발행하기"
 date: 2025-03-08
 draft: false
-image: "images/blog/"* && "$line" == *""
+image: "images/blog/스크린샷 2025-03-08 오후 10.11.36.png"
 ---
 
 
 
 옵시디언(Obsidian)에서 노트를 관리하면서 원하는 글만 골라서 GitHub Pages 블로그에 발행하는 워크플로우를 만들어보겠습니다. 이 가이드는 Hugo와 Hugoplate 테마를 사용한 방법을 중심으로 설명합니다.
 
+{{< image src="images/blog/스크린샷 2025-03-08 오후 10.11.36.png" >}}
 ## 목차
 
 1. [준비물 및 환경설정](#1-준비물-및-환경설정)
@@ -486,7 +487,6 @@ which hugo  # Hugo 경로 확인
 
 이 방법을 통해 옵시디언에서 작성한 노트 중 원하는 것만 선택적으로 Hugo 블로그로 발행할 수 있습니다. `` 태그만 추가하고 단축키 한 번으로 발행 과정이 자동화되어 편리하게 블로그를 관리할 수 있습니다.
 
-{{< image src="images/blog/스크린샷 2025-03-08 오후 10.11.36.png" >}}
 ### 참고
 * https://themes.gohugo.io/themes/hugoplate/
 * https://gohugo.io/getting-started/usage/

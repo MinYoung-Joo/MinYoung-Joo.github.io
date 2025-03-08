@@ -2,7 +2,7 @@
 title: "옵시디언에서 github.io 블로그로 원하는 글만 선택적으로 발행하기"
 date: 2025-03-08
 draft: false
-image: "images/blog/screenshot_hu14038609273344937620.png"
+image: "images/blog/"* && "$line" == *""
 ---
 
 
@@ -80,8 +80,8 @@ GitHub Pages 설정:
 export PATH="$PATH:/opt/homebrew/bin"
 
 # 설정 - 경로를 실제 환경에 맞게 수정 (따옴표로 경로 처리)
-VAULT_DIR="/Users/user_name/Library/Mobile Documents/iCloud~md~obsidian/Documents/your_vault_name"
-BLOG_DIR="/Users/user_name/Documents/blog"
+VAULT_DIR="/Users/myjoo/Library/Mobile Documents/iCloud~md~obsidian/Documents/myjoo"
+BLOG_DIR="/Users/myjoo/Documents/blog"
 TARGET_DIR="$BLOG_DIR/content/english/blog"
 IMAGE_DIR="$BLOG_DIR/assets/images/blog"
 PUBLISH_TAG=""
@@ -114,7 +114,7 @@ if [ -d "$VAULT_DIR" ]; then
   temp_file=$(mktemp)
   
   # 모든 마크다운 파일 찾기
-  find "$VAULT_DIR" -type f -name "*.md" -print0 | while IFS= read -r -d $'' file; do
+  find "$VAULT_DIR" -type f -name "*.md" -print0 | while IFS= read -r -d $'\0' file; do
     # 파일의 처음 3줄만 검사
     if head -n 3 "$file" | grep -q "$PUBLISH_TAG"; then
       echo "$file" >> "$temp_file"
@@ -143,26 +143,17 @@ done
 publish_titles=()
 # IFS 변경으로 파일명에 공백이 있는 경우 처리
 OLDIFS="$IFS"
-IFS=$'
-'
+IFS=$'\n'
 to_publish_array=($to_publish_files)
 IFS="$OLDIFS"
 
 for file in "${to_publish_array[@]}"; do
   if [ -f "$file" ]; then
-    content=$(cat "$file" 2>/dev/null || echo "")
-    # 제목 추출 로직 개선 - Markdown 헤더 형식의 제목 찾기
-    if grep -q "^# " <<<"$content"; then
-      # 첫 번째 # 형식 헤더 찾기 (태그 제외)
-      title=$(grep -m 1 "^# " <<<"$content" | sed 's/^# //' | sed "s/$PUBLISH_TAG//g" | sed 's/^ *//' | sed 's/ *$//')
-    elif grep -q "^title:" <<<"$content"; then
-      # 프론트매터의 title 필드 사용
-      title=$(grep -m 1 "^title:" <<<"$content" | sed 's/^title: *"\(.*\)".*$/\1/')
-    else
-      # 파일명을 제목으로 사용
-      title="${file##*/}"
-      title="${title%.md}"
-    fi
+    # 파일명을 우선적으로 제목으로 사용
+    filename_without_ext="${file##*/}"
+    filename_without_ext="${filename_without_ext%.md}"
+    title="$filename_without_ext"
+    
     publish_titles+=("$title")
   fi
 done
@@ -216,17 +207,9 @@ for file in "${to_publish_array[@]}"; do
   # 내용 읽기
   content=$(cat "$file" 2>/dev/null || echo "")
   
-  # 제목 추출 로직 개선 - Markdown 헤더 형식의 제목 찾기
-  if grep -q "^# " <<<"$content"; then
-    # 첫 번째 # 형식 헤더 찾기 (태그 제외)
-    title=$(grep -m 1 "^# " <<<"$content" | sed 's/^# //' | sed "s/$PUBLISH_TAG//g" | sed 's/^ *//' | sed 's/ *$//')
-  elif grep -q "^title:" <<<"$content"; then
-    # 프론트매터의 title 필드 사용
-    title=$(grep -m 1 "^title:" <<<"$content" | sed 's/^title: *"\(.*\)".*$/\1/')
-  else
-    # 파일명을 제목으로 사용
-    title="${filename%.md}"
-  fi
+  # 파일명을 우선적으로 제목으로 사용
+  filename_without_ext="${filename%.md}"
+  title="$filename_without_ext"
   
   # 발행 상태 확인
   if [ -f "$output_file" ]; then
@@ -237,6 +220,78 @@ for file in "${to_publish_array[@]}"; do
   
   # PUBLISH_TAG 제거
   content=$(echo "$content" | sed "s/$PUBLISH_TAG//g")
+  
+  # 이미지 처리 - 파일에서 이미지 찾기 (특수문자 문제 회피)
+  image_line=""
+  dir=$(dirname "$file")
+  file_content=$(cat "$file")
+  
+  # 파일 내용에서 모든 줄에 대해 이미지 검사
+  IFS=$'\n'
+  for line in $file_content; do
+    # 옵시디언 위키 링크 스타일 이미지 ([[ ]] 패턴)
+    if [[ "$line" == *"![["* && "$line" == *"]]"* ]]; then
+      img_path=$(echo "$line" | awk -F'!\\[\\[|\\]\\]' '{print $2}')
+      if [ -n "$img_path" ]; then
+        img_name=$(basename "$img_path")
+        if [ -n "$img_name" ] && [ "$img_name" != " " ]; then
+          image_line="image: \"images/blog/$img_name\""
+          
+          # 이미지 파일 확인 및 복사
+          if [ -f "$dir/$img_path" ]; then
+            echo "  이미지 복사: $img_path"
+            cp "$dir/$img_path" "$IMAGE_DIR/$img_name"
+          elif [ -f "$VAULT_DIR/attachments/$img_path" ]; then
+            echo "  이미지 복사: attachments/$img_path"
+            cp "$VAULT_DIR/attachments/$img_path" "$IMAGE_DIR/$img_name"
+          fi
+          
+          break  # 첫 번째 이미지 찾으면 중단
+        fi
+      fi
+    # 마크다운 이미지 링크 스타일 (![](URL) 패턴)
+    elif [[ "$line" == *"!["* && "$line" == *"]("* && "$line" == *")"* ]]; then
+      img_path=$(echo "$line" | awk -F'\\]\\(|\\)' '{print $2}')
+      if [ -n "$img_path" ] && [[ "$img_path" != "http"* ]]; then
+        img_name=$(basename "$img_path")
+        if [ -n "$img_name" ] && [ "$img_name" != " " ]; then
+          image_line="image: \"images/blog/$img_name\""
+          
+          # 이미지 파일 확인 및 복사 (상대 경로)
+          img_full_path="$dir/$img_path"
+          if [ -f "$img_full_path" ]; then
+            echo "  이미지 복사: $img_path"
+            cp "$img_full_path" "$IMAGE_DIR/$img_name"
+          fi
+          
+          break  # 첫 번째 이미지 찾으면 중단
+        fi
+      fi
+    fi
+  done
+  IFS="$OLDIFS"
+  
+  # attachments 디렉토리에서 파일 이름으로 이미지 찾기 (이름으로 검색)
+  if [ -z "$image_line" ] && [ -d "$VAULT_DIR/attachments" ]; then
+    # 파일에서 "![[" 패턴 검색
+    image_pattern=$(grep -o "!\\[\\[.*\\]\\]" "$file" | head -n 1)
+    if [ -n "$image_pattern" ]; then
+      # 패턴에서 파일 이름 추출 시도
+      potential_img_name=$(echo "$image_pattern" | sed 's/!\\[\\[\(.*\)\\]\\]/\1/')
+      if [ -n "$potential_img_name" ]; then
+        # attachments 디렉토리에서 파일 검색
+        find "$VAULT_DIR/attachments" -type f -name "*$potential_img_name*" | head -n 1 | while read -r img_file; do
+          if [ -f "$img_file" ]; then
+            img_name=$(basename "$img_file")
+            image_line="image: \"images/blog/$img_name\""
+            echo "  이미지 복사: $img_name"
+            cp "$img_file" "$IMAGE_DIR/$img_name"
+            break
+          fi
+        done
+      fi
+    fi
+  fi
   
   # 프론트매터 처리
   if [[ $content == ---* ]]; then
@@ -257,52 +312,35 @@ for file in "${to_publish_array[@]}"; do
       front_matter=$(echo "$front_matter" | sed 's/^title:.*$/title: "'"$title"'"/')
     fi
     
-    # image 필드 확인 (이미지가 있는 경우 추가)
-    if ! grep -q "^image:" <<<"$front_matter"; then
-      # 첫 번째 이미지 찾기 - 옵시디언 위키 링크 스타일
-      first_image=$(grep -o -m 1 "!\[\[.*\]\]" "$file" | sed 's/!\[\[\(.*\)\]\]/\1/g')
-      if [ -n "$first_image" ]; then
-        img_name=$(basename "$first_image")
-        front_matter=$(echo "$front_matter" | sed '/^---$/a image: "images/blog/'"$img_name"'"')
+    # image 필드 처리
+    if [ -n "$image_line" ]; then
+      if grep -q "^image:" <<<"$front_matter"; then
+        # 기존 image 필드가 있으면 교체
+        front_matter=$(echo "$front_matter" | sed 's|^image:.*$|'"$image_line"'|')
       else
-        # 첫 번째 이미지 찾기 - 마크다운 링크 스타일
-        first_image=$(grep -o -m 1 "!\[.*\](.*)" "$file" | sed 's/!\[.*\](\(.*\))/\1/g')
-        if [ -n "$first_image" ]; then
-          img_name=$(basename "$first_image")
-          front_matter=$(echo "$front_matter" | sed '/^---$/a image: "images/blog/'"$img_name"'"')
-        fi
+        # 필드가 없으면 추가
+        front_matter=$(echo "$front_matter" | sed '/^---$/a '"$image_line"'')
       fi
+    else
+      # 이미지가 없는 경우, image 필드 제거
+      front_matter=$(echo "$front_matter" | sed '/^image:/d')
     fi
     
     # 최종 내용 조합
     final_content="${front_matter}${rest_content}"
   else
     # 프론트매터가 없는 경우
-    # 첫 번째 줄이 # 으로 시작하면 제목으로 사용하고 본문에서 제외
+    # 첫 번째 줄이 # 으로 시작하면 본문에서 제외
     if [[ $content == \#* ]]; then
       content_without_title=$(echo "$content" | tail -n +2)
     else
       content_without_title="$content"
     fi
     
-    # 첫 번째 이미지 찾기
-    first_image=$(grep -o -m 1 "!\[\[.*\]\]" "$file" | sed 's/!\[\[\(.*\)\]\]/\1/g')
-    image_line=""
-    if [ -n "$first_image" ]; then
-      img_name=$(basename "$first_image")
-      image_line="image: \"images/blog/$img_name\""
-    else
-      # 마크다운 링크 스타일 이미지 확인
-      first_image=$(grep -o -m 1 "!\[.*\](.*)" "$file" | sed 's/!\[.*\](\(.*\))/\1/g')
-      if [ -n "$first_image" ]; then
-        img_name=$(basename "$first_image")
-        image_line="image: \"images/blog/$img_name\""
-      fi
-    fi
-    
     # 프론트매터 추가
     date=$(date +"%Y-%m-%d")
-    final_content="---
+    if [ -n "$image_line" ]; then
+      final_content="---
 title: \"$title\"
 date: $date
 draft: false
@@ -310,55 +348,34 @@ $image_line
 ---
 
 $content_without_title"
+    else
+      final_content="---
+title: \"$title\"
+date: $date
+draft: false
+---
+
+$content_without_title"
+    fi
   fi
   
   # 파일 저장
   echo "$final_content" > "$output_file"
   
-  # 이미지 처리
-  dir=$(dirname "$file")
+  # 이미지 링크 처리 - 옵시디언 -> Hugo 형식 변환
+  # 이미지 파일 목록 생성
+  if [ -d "$IMAGE_DIR" ]; then
+    image_files=$(find "$IMAGE_DIR" -type f -name "*" | xargs -n1 basename)
+    
+    # 각 이미지에 대해 링크 변환
+    for img in $image_files; do
+      # 옵시디언 위키 링크 스타일
+      sed -i '' "s|!\\[\\[$img\\]\\]|{{< image src=\"images/blog/$img\" >}}|g" "$output_file" 2>/dev/null || true
+      # 마크다운 링크 스타일
+      sed -i '' "s|!\\[.*\\]($img)|{{< image src=\"images/blog/$img\" >}}|g" "$output_file" 2>/dev/null || true
+    done
+  fi
   
-  # 첨부 파일 처리 - 옵시디언 Wiki 링크 스타일 (![[ ]])
-  grep -o "!\[\[.*\]\]" "$file" 2>/dev/null | sed 's/!\[\[\(.*\)\]\]/\1/g' | while read -r img; do
-    img_name=$(basename "$img")
-    
-    # 이미지 파일 찾기 및 복사
-    if [ -f "$dir/$img" ]; then
-      echo "  이미지 복사: $img"
-      cp "$dir/$img" "$IMAGE_DIR/$img_name"
-    elif [ -f "$VAULT_DIR/attachments/$img" ]; then
-      echo "  이미지 복사: attachments/$img"
-      cp "$VAULT_DIR/attachments/$img" "$IMAGE_DIR/$img_name"
-    fi
-    
-    # 이미지 경로 업데이트 - Hugo 방식으로 (macOS sed 호환성 수정)
-    sed -i '' "s|!\[\[$img\]\]|{{< image src=\"images/blog/$img_name\" >}}|g" "$output_file" 2>/dev/null || true
-  done
-  
-  # Markdown 이미지 링크 스타일 (![]())
-  grep -o "!\[.*\](.*)" "$file" 2>/dev/null | sed 's/!\[.*\](\(.*\))/\1/g' | while read -r img; do
-    # 상대 경로 처리
-    img_path="$img"
-    if [[ "$img" != /* && "$img" != http* ]]; then
-      img_path="$dir/$img"
-    fi
-    
-    if [[ "$img" != http* && -f "$img_path" ]]; then
-      img_name=$(basename "$img")
-      echo "  이미지 복사: $img_name"
-      cp "$img_path" "$IMAGE_DIR/$img_name"
-      
-      # 이미지 설명 추출
-      img_alt=$(grep -o "!\[.*\]($img)" "$file" | sed 's/!\[\(.*\)\](.*)$/\1/g')
-      
-      # 이미지 경로 업데이트 - Hugo 방식으로 (macOS sed 호환성 수정)
-      if [ -n "$img_alt" ] && [ "$img_alt" != " " ]; then
-        sed -i '' "s|!\[.*\]($img)|{{< image src=\"images/blog/$img_name\" caption=\"$img_alt\" >}}|g" "$output_file" 2>/dev/null || true
-      else
-        sed -i '' "s|!\[.*\]($img)|{{< image src=\"images/blog/$img_name\" >}}|g" "$output_file" 2>/dev/null || true
-      fi
-    fi
-  done
 done
 
 echo "발행 작업 완료: $PUBLISH_TAG 태그가 있는 노트를 발행하고, 태그가 제거된 노트는 발행 취소했습니다."
@@ -469,7 +486,7 @@ which hugo  # Hugo 경로 확인
 
 이 방법을 통해 옵시디언에서 작성한 노트 중 원하는 것만 선택적으로 Hugo 블로그로 발행할 수 있습니다. `` 태그만 추가하고 단축키 한 번으로 발행 과정이 자동화되어 편리하게 블로그를 관리할 수 있습니다.
 
-{{< image src="images/blog/screenshot_hu14038609273344937620.png" >}}
+![[screenshot_hu14038609273344937620.png]]
 
 ### 참고
 * https://themes.gohugo.io/themes/hugoplate/

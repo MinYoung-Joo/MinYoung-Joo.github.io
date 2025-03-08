@@ -1,3 +1,80 @@
+---
+title: "옵시디언에서 GitHub Pages로 선택적 발행하기: Hugo와 Shell Commands를 활용한 방법"
+date: 2025-03-08
+draft: false
+image: "images/blog/ "
+---
+
+
+# 옵시디언에서 GitHub Pages로 선택적 발행하기: Hugo와 Shell Commands를 활용한 방법
+
+옵시디언에서 모든 노트를 관리하면서 원하는 글만 GitHub Pages 블로그에 발행하는 워크플로우를 만들어보겠습니다. 이 가이드는 Hugo와 Hugoplate 테마를 사용한 방법을 중심으로 설명합니다.
+
+## 목차
+
+1. [준비물 및 환경설정](#1-준비물-및-환경설정)
+2. [Hugo 블로그 설정](#2-hugo-블로그-설정)
+3. [선택적 발행을 위한 스크립트 작성](#3-선택적-발행을-위한-스크립트-작성)
+4. [옵시디언 Shell Commands 플러그인 설정](#4-옵시디언-shell-commands-플러그인-설정)
+5. [사용 방법](#5-사용-방법)
+6. [문제 해결](#6-문제-해결)
+
+## 1. 준비물 및 환경설정
+
+필요한 도구:
+- [옵시디언](https://obsidian.md/) (노트 작성용)
+- [Git](https://git-scm.com/) (버전 관리 및 배포)
+- [Hugo](https://gohugo.io/) (정적 사이트 생성기)
+- [GitHub 계정](https://github.com/) (블로그 호스팅)
+
+### 폴더 구조
+```
+/Users/사용자명/
+├── Library/Mobile Documents/iCloud~md~obsidian/Documents/
+│   └── 볼트이름/             # 옵시디언 볼트 (모든 노트 관리)
+│       ├── Personal/
+│       ├── Work/
+│       └── 기타 폴더/
+└── Documents/
+    └── blog/                # Hugo 블로그 (GitHub과 연결됨)
+```
+
+## 2. Hugo 블로그 설정
+
+### 2.1 Hugoplate 테마로 새 사이트 생성
+
+```bash
+# 블로그 디렉토리 생성
+mkdir -p ~/Documents/blog
+cd ~/Documents/blog
+
+# Hugoplate 테마 클론
+git clone https://github.com/zeon-studio/hugoplate.git .
+
+# Git 정보 초기화
+rm -rf .git
+git init
+git add .
+git commit -m "Initial commit with Hugoplate theme"
+```
+
+### 2.2 GitHub 연결 및 설정
+
+```bash
+# GitHub 저장소 생성 후 연결
+git remote add origin git@github.com:사용자명/사용자명.github.io.git
+git push -u origin main
+```
+
+GitHub Pages 설정:
+1. GitHub 저장소로 이동 > Settings > Pages
+2. Source: "GitHub Actions"로 설정
+
+## 3. 선택적 발행을 위한 스크립트 작성
+
+`/Users/사용자명/Documents/blog/publish.sh` 파일 생성:
+
+```bash
 #!/bin/bash
 
 # 환경 설정
@@ -8,7 +85,7 @@ VAULT_DIR="/Users/myjoo/Library/Mobile Documents/iCloud~md~obsidian/Documents/my
 BLOG_DIR="/Users/myjoo/Documents/blog"
 TARGET_DIR="$BLOG_DIR/content/english/blog"
 IMAGE_DIR="$BLOG_DIR/assets/images/blog"
-PUBLISH_TAG="#publish"
+PUBLISH_TAG=""
 
 # 디버깅을 위한 경로 확인
 echo "VAULT_DIR: $VAULT_DIR"
@@ -32,7 +109,7 @@ else
 fi
 
 # PUBLISH_TAG가 있는 노트 찾기 - 특수문자가 있는 파일명도 안전하게 처리
-echo "#publish 태그가 있는 노트 찾는 중..."
+echo " 태그가 있는 노트 찾는 중..."
 if [ -d "$VAULT_DIR" ]; then
   # 임시 파일 생성
   temp_file=$(mktemp)
@@ -293,3 +370,104 @@ git commit -m "Update blog posts: $(date +'%Y-%m-%d %H:%M:%S')"
 git push
 
 echo "완료! GitHub Actions가 사이트를 빌드하고 배포할 것입니다."
+```
+
+스크립트에 실행 권한 부여:
+```bash
+chmod +x ~/Documents/blog/publish.sh
+```
+
+## 4. 옵시디언 Shell Commands 플러그인 설정
+
+### 4.1 플러그인 설치
+
+1. 옵시디언 > 설정 > 커뮤니티 플러그인 > 커뮤니티 플러그인 찾아보기
+2. "Shell commands" 검색 및 설치
+3. 설치 후 활성화
+
+### 4.2 명령어 설정
+
+1. 옵시디언 > 설정 > Shell commands
+2. "New shell command" 버튼 클릭
+3. 다음과 같이 설정:
+   - **명령어 이름**: "Hugo로 발행하기"
+   - **쉘 명령어**: `/Users/사용자명/Documents/blog/publish.sh`
+   - **작업 디렉토리**: `/Users/사용자명/Documents/blog`
+
+### 4.3 단축키 설정
+
+1. 옵시디언 > 설정 > 단축키
+2. "shell"이나 "Hugo로 발행하기" 검색
+3. "+" 버튼 클릭하여 원하는 단축키 지정 (예: `Ctrl+Alt+P` 또는 `Cmd+Alt+P`)
+
+## 5. 사용 방법
+
+### 5.1 노트 작성 및 태그 추가
+
+1. 옵시디언에서 평소처럼 노트 작성
+2. 발행하려는 노트에 `` 태그 추가:
+   ```markdown
+   # 발행할 노트 제목
+   
+   
+   
+   노트 내용...
+   ```
+
+### 5.2 발행하기
+
+1. 발행하려는 노트를 열거나 또는 아무 곳에서나
+2. 설정한 단축키(`Ctrl+Alt+P` 또는 `Cmd+Alt+P`)를 눌러 스크립트 실행
+3. 잠시 후 `https://사용자명.github.io`에서 발행된 내용 확인
+
+### 5.3 프론트매터 활용
+
+더 세밀한 제어를 위해 프론트매터 사용:
+
+```markdown
+---
+title: "블로그 포스트 제목"
+date: 2024-03-08
+tags: [publish, 기술, 튜토리얼]
+draft: false
+---
+
+# 블로그 포스트 제목
+
+내용...
+```
+
+## 6. 문제 해결
+
+### 6.1 경로 문제
+
+스크립트에서 모든 경로가 실제 환경에 맞게 수정되었는지 확인합니다:
+- `VAULT_DIR`: 옵시디언 볼트 경로
+- `BLOG_DIR`: Hugo 블로그 경로
+- `HUGO_PATH`: Hugo 실행 파일 경로
+
+### 6.2 권한 문제
+
+스크립트 실행 권한이 부여되었는지 확인:
+```bash
+chmod +x ~/Documents/blog/publish.sh
+```
+
+### 6.3 Hugo 명령어 문제
+
+Hugo가 PATH에 없다면 절대 경로 사용:
+```bash
+which hugo  # Hugo 경로 확인
+```
+
+### 6.4 이미지 경로 문제
+
+이미지가 제대로 표시되지 않는 경우 Hugo 테마의 이미지 처리 방식 확인:
+1. `config.toml` 파일에서 이미지 관련 설정 확인
+2. 테마 문서 참고
+
+---
+
+이 방법을 통해 옵시디언에서 작성한 노트 중 원하는 것만 선택적으로 Hugo 블로그로 발행할 수 있습니다. `` 태그만 추가하고 단축키 한 번으로 발행 과정이 자동화되어 편리하게 블로그를 관리할 수 있습니다.
+
+{{< image src="images/blog/screenshot_hu14038609273344937620.png" >}}

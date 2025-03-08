@@ -145,61 +145,37 @@ for file in "${to_publish_array[@]}"; do
   # PUBLISH_TAG 제거
   content=$(echo "$content" | sed "s/$PUBLISH_TAG//g")
   
-  # 이미지 처리 - 단순화된 접근법
-  image_str=""
+  # 이미지 처리 - 파일 내용에서 이미지 참조 확인
+  image_line=""
   dir=$(dirname "$file")
   
-  # 이미지 검색 및 처리 - 라인별 처리가 아닌 패턴 검색 사용
-  if grep -F "![[" "$file" > /dev/null 2>&1; then
-    # 첫 번째 이미지 태그 찾기 (임시 파일 사용)
-    grep -F "![[" "$file" | head -n 1 > /tmp/img_line.txt
-    
-    # 읽은 줄에서 이미지 이름 추출
-    if [ -s /tmp/img_line.txt ]; then
-      raw_img_line=$(cat /tmp/img_line.txt)
-      
-      # 정규식을 사용하지 않고 간단한 문자열 처리로 이미지 이름 추출
-      img_name=""
-      start_marker="![["
-      end_marker="]]"
-      
-      # 시작 위치 찾기
-      start_pos=$(echo "$raw_img_line" | awk -v marker="$start_marker" '{ print index($0, marker) }')
-      
-      if [ $start_pos -gt 0 ]; then
-        # 시작 위치에서 마커 길이만큼 이동
-        start_pos=$((start_pos + ${#start_marker}))
-        part_after_start=${raw_img_line:$start_pos-1}
+  # 옵시디언 위키 스타일 이미지 찾기 (![[filename.png]])
+  found_images=()
+  while IFS= read -r line; do
+    if [[ "$line" == *"![["* && "$line" == *"]]"* ]]; then
+      # 이미지 이름 추출
+      img_path=$(echo "$line" | sed -n 's/.*!\[\[\([^]]*\)\]\].*/\1/p')
+      if [ -n "$img_path" ]; then
+        img_name=$(basename "$img_path")
+        found_images+=("$img_name")
         
-        # 종료 위치 찾기
-        end_pos=$(echo "$part_after_start" | awk -v marker="$end_marker" '{ print index($0, marker) }')
+        # 첫 번째 이미지는 대표 이미지로 설정
+        if [ -z "$image_line" ]; then
+          # 이미지 라인을 미리 형식화하여 저장 (변수만 포함)
+          image_line="image: \"images/blog/$img_name\""
+        fi
         
-        if [ $end_pos -gt 0 ]; then
-          # 이미지 이름 추출
-          img_name=${part_after_start:0:$end_pos-1}
-          
-          # 이미지 파일 확인 및 복사
-          if [ -n "$img_name" ]; then
-            if [ -f "$VAULT_DIR/attachments/$img_name" ]; then
-              echo "  이미지 복사: attachments/$img_name"
-              cp "$VAULT_DIR/attachments/$img_name" "$IMAGE_DIR/$img_name"
-              
-              # 명시적인 image 문자열 설정
-              image_str="image: \"images/blog/$img_name\""
-            elif [ -f "$dir/$img_name" ]; then
-              echo "  이미지 복사: $img_name"
-              cp "$dir/$img_name" "$IMAGE_DIR/$img_name"
-              
-              # 명시적인 image 문자열 설정
-              image_str="image: \"images/blog/$img_name\""
-            fi
-          fi
+        # 이미지 파일 복사
+        if [ -f "$VAULT_DIR/attachments/$img_name" ]; then
+          echo "  이미지 복사: attachments/$img_name"
+          cp "$VAULT_DIR/attachments/$img_name" "$IMAGE_DIR/$img_name"
+        elif [ -f "$dir/$img_name" ]; then
+          echo "  이미지 복사: $img_name"
+          cp "$dir/$img_name" "$IMAGE_DIR/$img_name"
         fi
       fi
     fi
-    
-    rm /tmp/img_line.txt
-  fi
+  done < "$file"
   
   # 프론트매터 처리
   if [[ $content == ---* ]]; then
@@ -220,29 +196,39 @@ for file in "${to_publish_array[@]}"; do
       front_matter=$(echo "$front_matter" | sed 's/^title:.*$/title: "'"$title"'"/')
     fi
     
-    # image 필드 처리 - 라인별 접근법 사용
-    if [ -n "$image_str" ]; then
-      # 임시 파일에 새 프론트매터 작성
-      echo "---" > /tmp/frontmatter.txt
-      echo "$front_matter" | grep -v "^---" | grep -v "^image:" | while read -r line; do
-        echo "$line" >> /tmp/frontmatter.txt
-      done
-      
-      # 이미지 라인 추가
-      echo "$image_str" >> /tmp/frontmatter.txt
-      echo "---" >> /tmp/frontmatter.txt
-      
-      # 새 프론트매터 읽기
-      front_matter=$(cat /tmp/frontmatter.txt)
-      rm /tmp/frontmatter.txt
+    # image 필드 처리 - 여기를 수정
+    if [ -n "$image_line" ]; then
+      # 이미지 필드가 이미 있는지 확인
+      if grep -q "^image:" <<<"$front_matter"; then
+        # 이미지 필드 교체 (sed 대신 awk 사용)
+        new_front_matter=""
+        while IFS= read -r line; do
+          if [[ "$line" == "image:"* ]]; then
+            echo "$image_line" >> /tmp/front_matter.tmp
+          else
+            echo "$line" >> /tmp/front_matter.tmp
+          fi
+        done <<< "$front_matter"
+        front_matter=$(cat /tmp/front_matter.tmp)
+        rm /tmp/front_matter.tmp
+      else
+        # 이미지 필드 추가 - 안전한 방식으로
+        echo "$front_matter" | sed '/^---$/a '"$image_line" > /tmp/front_matter.tmp
+        front_matter=$(cat /tmp/front_matter.tmp)
+        rm /tmp/front_matter.tmp
+      fi
     else
-      # 이미지가 없는 경우 image 필드 제거
-      new_frontmatter=""
-      echo "---" > /tmp/frontmatter.txt
-      echo "$front_matter" | grep -v "^---" | grep -v "^image:" >> /tmp/frontmatter.txt
-      echo "---" >> /tmp/frontmatter.txt
-      front_matter=$(cat /tmp/frontmatter.txt)
-      rm /tmp/frontmatter.txt
+      # 이미지가 없는 경우 이미지 필드 제거
+      if grep -q "^image:" <<<"$front_matter"; then
+        new_front_matter=""
+        while IFS= read -r line; do
+          if [[ "$line" != "image:"* ]]; then
+            echo "$line" >> /tmp/front_matter.tmp
+          fi
+        done <<< "$front_matter"
+        front_matter=$(cat /tmp/front_matter.tmp)
+        rm /tmp/front_matter.tmp
+      fi
     fi
     
     # 최종 내용 조합
@@ -258,12 +244,12 @@ for file in "${to_publish_array[@]}"; do
     
     # 프론트매터 추가
     date=$(date +"%Y-%m-%d")
-    if [ -n "$image_str" ]; then
+    if [ -n "$image_line" ]; then
       final_content="---
 title: \"$title\"
 date: $date
 draft: false
-$image_str
+$image_line
 ---
 
 $content_without_title"
@@ -278,22 +264,17 @@ $content_without_title"
     fi
   fi
   
-  # 임시 파일에 일단 저장
-  echo "$final_content" > /tmp/final_content.txt
+  # 이미지 태그 변환 준비
+  temp_content="$final_content"
   
-  # 이미지 태그 변환 - 이미지 자체의 태그 변환은 별도 처리
-  if [ -f "$IMAGE_DIR/screenshot_hu14038609273344937620.png" ]; then
-    # 해당 이미지가 있는 경우 변환
-    cat /tmp/final_content.txt | sed 's|!\[\[screenshot_hu14038609273344937620.png\]\]|{{< image src="images/blog/screenshot_hu14038609273344937620.png" >}}|g' > "$output_file"
-  elif [ -f "$IMAGE_DIR/1741329758693.png" ]; then
-    # 다른 이미지가 있는 경우 변환
-    cat /tmp/final_content.txt | sed 's|!\[\[1741329758693.png\]\]|{{< image src="images/blog/1741329758693.png" >}}|g' > "$output_file"
-  else
-    # 이미지가 없는 경우 그대로 사용
-    cp /tmp/final_content.txt "$output_file"
-  fi
+  # 이미지 태그 변환 실행 - 모든 옵시디언 위키 링크를 Hugo 이미지 태그로 변환
+  for img_name in "${found_images[@]}"; do
+    # 일반 옵시디언 문법 패턴을 Hugo 태그로 변환
+    temp_content=$(echo "$temp_content" | sed "s|!\[\[$img_name\]\]|{{< image src=\"images/blog/$img_name\" >}}|g")
+  done
   
-  rm /tmp/final_content.txt
+  # 최종 내용 저장
+  echo "$temp_content" > "$output_file"
 done
 
 echo "발행 작업 완료: $PUBLISH_TAG 태그가 있는 노트를 발행하고, 태그가 제거된 노트는 발행 취소했습니다."

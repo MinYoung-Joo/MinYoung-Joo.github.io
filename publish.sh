@@ -20,51 +20,69 @@ mkdir -p "$IMAGE_DIR"
 
 echo "선택적 발행 시작: $PUBLISH_TAG 태그가 있는 노트만 발행합니다."
 
-# 태그가 있는 파일 찾기
-find "$VAULT_DIR" -type f -name "*.md" -exec grep -l "$PUBLISH_TAG" {} \; | while read file; do
+# 기존 파일 목록 저장 (중복 발행 방지용)
+previously_published_files=$(find "$TARGET_DIR" -type f -name "*.md" | xargs -n1 basename)
+
+# 태그가 있는 파일 찾기 - grep 명령 개선
+find "$VAULT_DIR" -type f -name "*.md" -exec grep -l "\b$PUBLISH_TAG\b" {} \; | while read file; do
   filename=$(basename "$file")
   rel_path=${file#$VAULT_DIR/}
   dir_path=$(dirname "$rel_path")
   
-  # 파일명에서 공백 및 특수문자 처리 (Hugo 친화적으로) - 정규식 수정
-  clean_filename=$(echo "$filename" | sed 's/ /-/g' | sed 's/[^a-zA-Z0-9_.-]/-/g' | tr '[:upper:]' '[:lower:]')
+  # URL 친화적인 파일명 생성 (한글 유지)
+  # 공백을 하이픈으로 변경하고 특수 문자만 제거
+  slug=$(echo "$filename" | sed 's/ /-/g' | sed 's/[^a-zA-Z0-9가-힣ㄱ-ㅎㅏ-ㅣ_.-]//g')
   
-  echo "발행: $rel_path -> $clean_filename"
+  # 이미 발행된 파일인지 확인 (중복 발행 방지)
+  if echo "$previously_published_files" | grep -q "^$slug$"; then
+    echo "이미 발행된 노트 건너뛰기: $rel_path"
+    continue
+  fi
+  
+  echo "발행: $rel_path -> $slug"
   
   # 파일 내용 읽기
   content=$(cat "$file")
   
+  # PUBLISH_TAG 제거 (내용에서 태그 자체를 삭제)
+  content=$(echo "$content" | sed "s/$PUBLISH_TAG//g")
+  
   # 프론트매터 처리
   if [[ $content == ---* ]]; then
-    # 프론트매터에서 태그 줄 찾기
+    # 프론트매터 추출
     front_matter=$(echo "$content" | awk '/^---/{i++}i==1{print}i==2{exit}')
     rest_content=$(echo "$content" | awk '/^---/{i++}i>1{print}' | tail -n +2)
     
-    # #publish 태그 제거
-    cleaned_content=$(echo "$front_matter" | sed "s/$PUBLISH_TAG//g")
-    
     # draft: false 추가 (없는 경우)
-    if ! echo "$cleaned_content" | grep -q "draft:"; then
-      cleaned_content=$(echo "$cleaned_content" | sed '/^---$/i\\
+    if ! echo "$front_matter" | grep -q "draft:"; then
+      front_matter=$(echo "$front_matter" | sed '/^---$/i\\
 draft: false')
     fi
     
     # image 필드 확인 (이미지가 있는 경우 추가)
-    if ! echo "$cleaned_content" | grep -q "image:"; then
+    if ! echo "$front_matter" | grep -q "image:"; then
       # 첫 번째 이미지 찾기
       first_image=$(grep -o -m 1 "!\[\[.*\]\]" "$file" | sed 's/!\[\[\(.*\)\]\]/\1/g')
       if [ -n "$first_image" ]; then
         img_name=$(basename "$first_image")
-        cleaned_content=$(echo "$cleaned_content" | sed '/^---$/i\\
+        front_matter=$(echo "$front_matter" | sed '/^---$/i\\
 image: "images/blog/'"$img_name"'"')
       fi
     fi
     
     # 최종 내용 조합
-    final_content="${cleaned_content}${rest_content}"
+    final_content="${front_matter}${rest_content}"
   else
     # 프론트매터가 없는 경우 추가
-    title=$(head -n 1 "$file" | sed 's/^# //')
+    # 첫 번째 줄이 # 으로 시작하면 제목으로 사용
+    if [[ $content == \#* ]]; then
+      title=$(echo "$content" | head -n 1 | sed 's/^# //')
+      content_without_title=$(echo "$content" | tail -n +2)
+    else
+      title=$(basename "$file" .md)
+      content_without_title="$content"
+    fi
+    
     date=$(date +"%Y-%m-%d")
     
     # 첫 번째 이미지 찾기
@@ -82,11 +100,11 @@ draft: false
 $image_line
 ---
 
-$content"
+$content_without_title"
   fi
   
   # 파일 저장
-  echo "$final_content" > "$TARGET_DIR/$clean_filename"
+  echo "$final_content" > "$TARGET_DIR/$slug"
   
   # 이미지 처리
   dir=$(dirname "$file")
@@ -105,7 +123,7 @@ $content"
     fi
     
     # 이미지 경로 업데이트 - Hugo 방식으로 (macOS sed 호환성 수정)
-    sed -i '' "s|!\[\[$img\]\]|{{< image src=\"images/blog/$img_name\" >}}|g" "$TARGET_DIR/$clean_filename"
+    sed -i '' "s|!\[\[$img\]\]|{{< image src=\"images/blog/$img_name\" >}}|g" "$TARGET_DIR/$slug"
   done
   
   # Markdown 이미지 링크 스타일 (![]())
@@ -126,9 +144,9 @@ $content"
       
       # 이미지 경로 업데이트 - Hugo 방식으로 (macOS sed 호환성 수정)
       if [ -n "$img_alt" ] && [ "$img_alt" != " " ]; then
-        sed -i '' "s|!\\[.*\\]($img)|{{< image src=\"images/blog/$img_name\" caption=\"$img_alt\" >}}|g" "$TARGET_DIR/$clean_filename"
+        sed -i '' "s|!\\[.*\\]($img)|{{< image src=\"images/blog/$img_name\" caption=\"$img_alt\" >}}|g" "$TARGET_DIR/$slug"
       else
-        sed -i '' "s|!\\[.*\\]($img)|{{< image src=\"images/blog/$img_name\" >}}|g" "$TARGET_DIR/$clean_filename"
+        sed -i '' "s|!\\[.*\\]($img)|{{< image src=\"images/blog/$img_name\" >}}|g" "$TARGET_DIR/$slug"
       fi
     fi
   done

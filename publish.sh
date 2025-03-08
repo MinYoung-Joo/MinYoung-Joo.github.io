@@ -34,38 +34,10 @@ fi
 # PUBLISH_TAG가 있는 노트 찾기
 echo "#publish 태그가 있는 노트 찾는 중..."
 if [ -d "$VAULT_DIR" ]; then
-  echo "볼트 디렉토리 확인: $VAULT_DIR 존재함"
-  # 디버깅: 전체 마크다운 파일 개수 확인
-  md_files_count=$(find "$VAULT_DIR" -type f -name "*.md" | wc -l)
-  echo "볼트에서 발견된 마크다운 파일 수: $md_files_count"
-  
-  # 발행할 파일 목록 초기화
-  to_publish_files=""
-  
-  # 각 파일의 상단 부분에서만 #publish 태그 찾기 (find -print0와 while read -r -d $'\0'로 파일명 처리 문제 해결)
-  find "$VAULT_DIR" -type f -name "*.md" -print0 | while IFS= read -r -d $'\0' md_file; do
-    # 파일의 처음 3줄만 검사 (프론트매터와 문서 시작 부분에 있는 태그만 찾기 위함)
-    if head -n 3 "$md_file" | grep -q "\b$PUBLISH_TAG\b"; then
-      if [ -z "$to_publish_files" ]; then
-        to_publish_files="$md_file"
-      else
-        to_publish_files="$to_publish_files
-$md_file"
-      fi
-      echo "발행 대상 파일 발견: $(basename "$md_file")"
-    fi
-  done > /tmp/publish_files.txt
-  
-  # 임시 파일에서 발행 파일 목록 읽기 (서브쉘에서의 변수 문제 해결)
-  to_publish_files=$(cat /tmp/publish_files.txt)
-  
-  # 디버깅: 발행할 파일 개수와 목록 출력
-  publish_count=$(echo "$to_publish_files" | grep -v "^$" | wc -l)
-  echo "발행 대상 파일 수: $publish_count"
-  if [ "$publish_count" -gt 0 ]; then
-    echo "발행 대상 파일 목록:"
-    echo "$to_publish_files" | sed 's/^/  - /'
-  fi
+  # 태그가 있는 파일 목록 생성
+  # 파일명 처리 문제를 해결하기 위해 find -print0와 xargs -0 사용
+  # 처음 3줄만 검사하도록 head -n 3 추가
+  to_publish_files=$(find "$VAULT_DIR" -type f -name "*.md" -print0 | xargs -0 -I{} sh -c 'if head -n 3 "{}" | grep -q "'$PUBLISH_TAG'"; then echo "{}"; fi' 2>/dev/null || echo "")
 else
   echo "옵시디언 볼트 디렉토리를 찾을 수 없습니다: $VAULT_DIR"
   exit 1
@@ -82,15 +54,10 @@ done
 
 # 발행할 파일의 제목 목록 만들기
 publish_titles=()
-
-# IFS 백업 및 설정 변경 (파일명에 공백이나 특수문자가 있을 때 처리)
+# IFS 변경으로 파일명에 공백이 있는 경우 처리
 OLDIFS="$IFS"
 IFS=$'\n'
-
-# to_publish_files를 배열로 변환
 to_publish_array=($to_publish_files)
-
-# IFS 복원
 IFS="$OLDIFS"
 
 for file in "${to_publish_array[@]}"; do
@@ -108,7 +75,7 @@ for file in "${to_publish_array[@]}"; do
   fi
 done
 
-# 발행 취소할 파일 찾기 (_index.md와 post-숫자.md 패턴 제외)
+# 발행 취소할 파일 찾기
 for file in $published_files; do
   if [ -f "$file" ]; then
     # 파일 이름만 추출
@@ -140,17 +107,6 @@ for file in $published_files; do
 done
 
 # 발행 또는 업데이트할 노트 처리
-# 디버깅: to_publish_files가 비어있는지 확인
-if [ -z "$to_publish_files" ]; then
-  echo "경고: 발행할 파일이 없습니다. #publish 태그가 있는 파일을 찾지 못했습니다."
-  echo "가능한 원인:"
-  echo "1. #publish 태그가 없거나 형식이 다름 (예: 공백이나 특수문자 포함)"
-  echo "2. 경로 접근 권한 문제"
-  echo "3. grep 패턴 매칭 문제"
-  exit 0
-fi
-
-# 각 파일 처리
 for file in "${to_publish_array[@]}"; do
   # 파일 존재 확인
   if [ ! -f "$file" ]; then
@@ -161,10 +117,9 @@ for file in "${to_publish_array[@]}"; do
   # 노트 정보 추출
   filename=$(basename "$file")
   
-  # URL 친화적인 파일명 생성 (한글 유지)
-  # 공백을 하이픈으로 변경하고 특수 문자만 제거
-  slug=$(echo "$filename" | sed 's/ /-/g' | sed 's/[^a-zA-Z0-9가-힣ㄱ-ㅎㅏ-ㅣ_.-]//g')
-  output_file="$TARGET_DIR/$slug"
+  # 제목에서 특수문자 제거
+  safe_title=$(echo "$filename" | sed 's/ /-/g' | sed 's/[^a-zA-Z0-9가-힣ㄱ-ㅎㅏ-ㅣ_.-]//g')
+  output_file="$TARGET_DIR/$safe_title"
   
   # 내용 읽기
   content=$(cat "$file" 2>/dev/null || echo "")
@@ -204,16 +159,6 @@ for file in "${to_publish_array[@]}"; do
       front_matter=$(echo "$front_matter" | sed '/^---$/a title: "'"$title"'"')
     fi
     
-    # image 필드 확인 (이미지가 있는 경우 추가)
-    if ! grep -q "^image:" <<<"$front_matter"; then
-      # 첫 번째 이미지 찾기
-      first_image=$(grep -o -m 1 "!\[\[.*\]\]" "$file" | sed 's/!\[\[\(.*\)\]\]/\1/g')
-      if [ -n "$first_image" ]; then
-        img_name=$(basename "$first_image")
-        front_matter=$(echo "$front_matter" | sed '/^---$/a image: "images/blog/'"$img_name"'"')
-      fi
-    fi
-    
     # 최종 내용 조합
     final_content="${front_matter}${rest_content}"
   else
@@ -225,21 +170,12 @@ for file in "${to_publish_array[@]}"; do
       content_without_title="$content"
     fi
     
-    # 첫 번째 이미지 찾기
-    first_image=$(grep -o -m 1 "!\[\[.*\]\]" "$file" | sed 's/!\[\[\(.*\)\]\]/\1/g')
-    image_line=""
-    if [ -n "$first_image" ]; then
-      img_name=$(basename "$first_image")
-      image_line="image: \"images/blog/$img_name\""
-    fi
-    
     # 프론트매터 추가
     date=$(date +"%Y-%m-%d")
     final_content="---
 title: \"$title\"
 date: $date
 draft: false
-$image_line
 ---
 
 $content_without_title"

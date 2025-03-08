@@ -1,7 +1,8 @@
 ---
-title: "Veyrax MCP 개발 도구 통합의 혁신적인 접근법"
+title: "Veyrax, MCP 개발 도구 통합의 혁신적인 접근법"
 date: 2025-03-08
 draft: false
+image: "images/blog/스크린샷 2025-03-08 오후 10.29.03.png"
 ---
 
  
@@ -9,6 +10,7 @@ draft: false
 
 현대 개발 환경에서는 다양한 도구와 서비스를 효율적으로 관리하는 것이 중요한 과제입니다. 특히 AI와 통합할 때 여러 도구의 연결과 인증을 관리하는 것은 복잡한 작업이 될 수 있습니다. 이런 문제를 해결하기 위해 등장한 [Veyrax MCP(Modular Controller Platform)](https://www.veyrax.com/mcp)는 개발자들에게 새로운 방식의 도구 통합 솔루션을 제공합니다.
 
+{{< image src="images/blog/스크린샷 2025-03-08 오후 10.29.03.png" >}}
 ## MCP(Model Context Protocol)란?
 
 [MCP(Model Context Protocol)](https://modelcontextprotocol.io/introduction)는 애플리케이션이 LLM(대규모 언어 모델)에 컨텍스트를 제공하는 방식을 표준화하는 오픈 프로토콜입니다. USB-C 포트가 다양한 기기를 주변 장치에 연결하는 표준화된 방법을 제공하듯, MCP는 AI 모델을 다양한 데이터 소스와 도구에 연결하는 표준화된 방법을 제공합니다.
@@ -82,5 +84,3 @@ Veyrax를 시작하려면:
 3. 설정 선택 - 플랫폼에서 API 키가 포함된 전체 설정을 직접 복사할 수 있습니다
 4. 선호하는 MCP 클라이언트 선택
 5. 설정 가이드 따르기 (5분 이내 소요)
-
-![[스크린샷 2025-03-08 오후 10.29.03.png]]

@@ -1,11 +1,15 @@
 #!/bin/bash
 
+# 환경 설정
+export PATH="$PATH:/opt/homebrew/bin"
+
 # 설정 - 경로를 실제 환경에 맞게 수정
 VAULT_DIR="/Users/myjoo/Library/Mobile Documents/iCloud~md~obsidian/Documents/myjoo"
 BLOG_DIR="/Users/myjoo/Documents/blog"
-TARGET_DIR="$BLOG_DIR/content/english/blog"  # 블로그 포스트 저장 위치
-IMAGE_DIR="$BLOG_DIR/assets/images/blog"  # 이미지 저장 경로를 assets/images/blog로 변경
+TARGET_DIR="$BLOG_DIR/content/english/blog"
+IMAGE_DIR="$BLOG_DIR/assets/images/blog"
 PUBLISH_TAG="#publish"
+HUGO_PATH="/opt/homebrew/bin/hugo" # 절대 경로 사용
 
 # 스크립트 실행 디렉토리로 이동
 cd "$BLOG_DIR"
@@ -130,9 +134,9 @@ done
 
 echo "발행 완료: $PUBLISH_TAG 태그가 있는 노트가 Hugo 블로그에 발행되었습니다."
 
-# Hugo 사이트 빌드
+# Hugo 사이트 빌드 - 절대 경로 사용
 echo "Hugo 사이트 빌드 중..."
-hugo --minify
+$HUGO_PATH --minify
 
 echo "변경사항 Git에 커밋 및 푸시 중..."
 git add .

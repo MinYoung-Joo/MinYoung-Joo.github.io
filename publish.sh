@@ -145,6 +145,30 @@ for file in "${to_publish_array[@]}"; do
   # PUBLISH_TAG 제거
   content=$(echo "$content" | sed "s/$PUBLISH_TAG//g")
   
+  # 이미지 찾기 - 임시 파일에 저장하여 처리
+  img_temp_file=$(mktemp)
+  
+  # 옵시디언 위키 링크 스타일 (![[ ]]) 이미지 찾기
+  grep -F "![[" "$file" 2>/dev/null | head -n 1 > "$img_temp_file"
+  if [ -s "$img_temp_file" ]; then
+    # 파일이 비어있지 않으면(이미지를 찾았으면) 경로 추출
+    first_image=$(cat "$img_temp_file" | sed -E 's/.*!\[\[([^]]*)\]\].*/\1/')
+    img_name=$(basename "$first_image")
+    image_found=true
+  else
+    # 마크다운 링크 스타일 이미지 찾기
+    grep -F "![" "$file" 2>/dev/null | grep -v "![[" | head -n 1 > "$img_temp_file"
+    if [ -s "$img_temp_file" ]; then
+      first_image=$(cat "$img_temp_file" | sed -E 's/.*!\[.*\]\(([^)]*)\).*/\1/')
+      img_name=$(basename "$first_image")
+      image_found=true
+    else
+      image_found=false
+    fi
+  fi
+  
+  rm "$img_temp_file"
+  
   # 프론트매터 처리
   if [[ $content == ---* ]]; then
     # 프론트매터와 본문 분리
@@ -164,40 +188,19 @@ for file in "${to_publish_array[@]}"; do
       front_matter=$(echo "$front_matter" | sed 's/^title:.*$/title: "'"$title"'"/')
     fi
     
-    # image 필드 확인 (이미지가 있는 경우 추가)
-    if ! grep -q "^image:" <<<"$front_matter" || grep -q "^image: *\"images/blog/ *\"" <<<"$front_matter"; then
-      # 첫 번째 이미지 찾기 - 옵시디언 위키 링크 스타일 (이스케이프 처리 개선)
-      first_image=$(grep -F "![[" "$file" 2>/dev/null | head -n 1 | sed 's/!.*\[\[\(.*\)\]\].*/\1/g')
-      if [ -n "$first_image" ]; then
-        img_name=$(basename "$first_image")
-        if [ -n "$img_name" ] && [ "$img_name" != " " ]; then
-          # 이미 image 필드가 있으면 교체, 없으면 추가
-          if grep -q "^image:" <<<"$front_matter"; then
-            front_matter=$(echo "$front_matter" | sed 's|^image:.*$|image: "images/blog/'"$img_name"'"|')
-          else
-            front_matter=$(echo "$front_matter" | sed '/^---$/a image: "images/blog/'"$img_name"'"')
-          fi
-        fi
+    # image 필드 처리
+    if $image_found; then
+      # 이미지를 찾았을 경우
+      if grep -q "^image:" <<<"$front_matter"; then
+        # 기존 image 필드가 있으면 교체
+        front_matter=$(echo "$front_matter" | sed 's|^image:.*$|image: "images/blog/'"$img_name"'"|')
       else
-        # 첫 번째 이미지 찾기 - 마크다운 링크 스타일
-        first_image=$(grep -F "![" "$file" 2>/dev/null | grep -v "![[" | head -n 1 | sed 's/!.*\[\(.*\)\](\(.*\))/\2/g')
-        if [ -n "$first_image" ] && [ "$first_image" != " " ]; then
-          img_name=$(basename "$first_image")
-          if [ -n "$img_name" ] && [ "$img_name" != " " ]; then
-            # 이미 image 필드가 있으면 교체, 없으면 추가
-            if grep -q "^image:" <<<"$front_matter"; then
-              front_matter=$(echo "$front_matter" | sed 's|^image:.*$|image: "images/blog/'"$img_name"'"|')
-            else
-              front_matter=$(echo "$front_matter" | sed '/^---$/a image: "images/blog/'"$img_name"'"')
-            fi
-          fi
-        else
-          # 이미지가 없는 경우, image 필드 제거
-          if grep -q "^image:" <<<"$front_matter"; then
-            front_matter=$(echo "$front_matter" | sed '/^image:/d')
-          fi
-        fi
+        # 필드가 없으면 추가
+        front_matter=$(echo "$front_matter" | sed '/^---$/a image: "images/blog/'"$img_name"'"')
       fi
+    else
+      # 이미지가 없는 경우, image 필드 제거
+      front_matter=$(echo "$front_matter" | sed '/^image:/d')
     fi
     
     # 최종 내용 조합
@@ -211,33 +214,14 @@ for file in "${to_publish_array[@]}"; do
       content_without_title="$content"
     fi
     
-    # 첫 번째 이미지 찾기 (이스케이프 처리 개선)
-    image_line=""
-    first_image=$(grep -F "![[" "$file" 2>/dev/null | head -n 1 | sed 's/!.*\[\[\(.*\)\]\].*/\1/g')
-    if [ -n "$first_image" ]; then
-      img_name=$(basename "$first_image")
-      if [ -n "$img_name" ] && [ "$img_name" != " " ]; then
-        image_line="image: \"images/blog/$img_name\""
-      fi
-    else
-      # 마크다운 링크 스타일 이미지 확인
-      first_image=$(grep -F "![" "$file" 2>/dev/null | grep -v "![[" | head -n 1 | sed 's/!.*\[\(.*\)\](\(.*\))/\2/g')
-      if [ -n "$first_image" ] && [ "$first_image" != " " ]; then
-        img_name=$(basename "$first_image")
-        if [ -n "$img_name" ] && [ "$img_name" != " " ]; then
-          image_line="image: \"images/blog/$img_name\""
-        fi
-      fi
-    fi
-    
     # 프론트매터 추가
     date=$(date +"%Y-%m-%d")
-    if [ -n "$image_line" ]; then
+    if $image_found; then
       final_content="---
 title: \"$title\"
 date: $date
 draft: false
-$image_line
+image: \"images/blog/$img_name\"
 ---
 
 $content_without_title"
@@ -258,8 +242,8 @@ $content_without_title"
   # 이미지 처리
   dir=$(dirname "$file")
   
-  # 첨부 파일 처리 - 옵시디언 Wiki 링크 스타일 (![[ ]]) - 이스케이프 처리 개선
-  grep -F "![[" "$file" 2>/dev/null | sed 's/!.*\[\[\(.*\)\]\].*/\1/g' | while read -r img; do
+  # 첨부 파일 처리 - 옵시디언 Wiki 링크 스타일 (![[ ]])
+  grep -F "![[" "$file" 2>/dev/null | sed -E 's/.*!\[\[([^]]*)\]\].*/\1/' | while read -r img; do
     img_name=$(basename "$img")
     
     # 이미지 파일 찾기 및 복사
@@ -275,8 +259,8 @@ $content_without_title"
     sed -i '' "s|!\[\[$img\]\]|{{< image src=\"images/blog/$img_name\" >}}|g" "$output_file" 2>/dev/null || true
   done
   
-  # Markdown 이미지 링크 스타일 (![]()) - 이스케이프 처리 개선
-  grep -F "![" "$file" 2>/dev/null | grep -v "![[" | sed 's/!.*\[\(.*\)\](\(.*\))/\2/g' | while read -r img; do
+  # Markdown 이미지 링크 스타일 (![]())
+  grep -F "![" "$file" 2>/dev/null | grep -v "![[" | sed -E 's/.*!\[.*\]\(([^)]*)\).*/\1/' | while read -r img; do
     # 상대 경로 처리
     img_path="$img"
     if [[ "$img" != /* && "$img" != http* ]]; then
@@ -289,7 +273,7 @@ $content_without_title"
       cp "$img_path" "$IMAGE_DIR/$img_name"
       
       # 이미지 설명 추출
-      img_alt=$(grep -F "![" "$file" | grep -F "($img)" | sed 's/!.*\[\(.*\)\](.*/\1/g')
+      img_alt=$(grep -F "![" "$file" | grep -F "($img)" | sed -E 's/.*!\[(.*)\]\(.*/\1/')
       
       # 이미지 경로 업데이트 - Hugo 방식으로 (macOS sed 호환성 수정)
       if [ -n "$img_alt" ] && [ "$img_alt" != " " ]; then

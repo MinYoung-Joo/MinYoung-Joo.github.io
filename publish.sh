@@ -31,13 +31,24 @@ else
   published_files=""
 fi
 
-# PUBLISH_TAG가 있는 노트 찾기
+# PUBLISH_TAG가 있는 노트 찾기 - 특수문자가 있는 파일명도 안전하게 처리
 echo "#publish 태그가 있는 노트 찾는 중..."
 if [ -d "$VAULT_DIR" ]; then
-  # 태그가 있는 파일 목록 생성
-  # 파일명 처리 문제를 해결하기 위해 find -print0와 xargs -0 사용
-  # 처음 3줄만 검사하도록 head -n 3 추가
-  to_publish_files=$(find "$VAULT_DIR" -type f -name "*.md" -print0 | xargs -0 -I{} sh -c 'if head -n 3 "{}" | grep -q "'$PUBLISH_TAG'"; then echo "{}"; fi' 2>/dev/null || echo "")
+  # 임시 파일 생성
+  temp_file=$(mktemp)
+  
+  # 모든 마크다운 파일 찾기
+  find "$VAULT_DIR" -type f -name "*.md" -print0 | while IFS= read -r -d $'\0' file; do
+    # 파일의 처음 3줄만 검사
+    if head -n 3 "$file" | grep -q "$PUBLISH_TAG"; then
+      echo "$file" >> "$temp_file"
+      echo "발행 대상 파일 발견: $(basename "$file")"
+    fi
+  done
+  
+  # 결과 파일에서 to_publish_files 값 설정
+  to_publish_files=$(cat "$temp_file")
+  rm "$temp_file"
 else
   echo "옵시디언 볼트 디렉토리를 찾을 수 없습니다: $VAULT_DIR"
   exit 1
@@ -63,11 +74,15 @@ IFS="$OLDIFS"
 for file in "${to_publish_array[@]}"; do
   if [ -f "$file" ]; then
     content=$(cat "$file" 2>/dev/null || echo "")
-    if [[ $content == \#* ]]; then
-      title=$(echo "$content" | head -n 1 | sed 's/^# //')
+    # 제목 추출 로직 개선 - Markdown 헤더 형식의 제목 찾기
+    if grep -q "^# " <<<"$content"; then
+      # 첫 번째 # 형식 헤더 찾기 (태그 제외)
+      title=$(grep -m 1 "^# " <<<"$content" | sed 's/^# //' | sed "s/$PUBLISH_TAG//g" | sed 's/^ *//' | sed 's/ *$//')
     elif grep -q "^title:" <<<"$content"; then
+      # 프론트매터의 title 필드 사용
       title=$(grep -m 1 "^title:" <<<"$content" | sed 's/^title: *"\(.*\)".*$/\1/')
     else
+      # 파일명을 제목으로 사용
       title="${file##*/}"
       title="${title%.md}"
     fi
@@ -124,12 +139,15 @@ for file in "${to_publish_array[@]}"; do
   # 내용 읽기
   content=$(cat "$file" 2>/dev/null || echo "")
   
-  # 제목 추출
-  if [[ $content == \#* ]]; then
-    title=$(echo "$content" | head -n 1 | sed 's/^# //')
+  # 제목 추출 로직 개선 - Markdown 헤더 형식의 제목 찾기
+  if grep -q "^# " <<<"$content"; then
+    # 첫 번째 # 형식 헤더 찾기 (태그 제외)
+    title=$(grep -m 1 "^# " <<<"$content" | sed 's/^# //' | sed "s/$PUBLISH_TAG//g" | sed 's/^ *//' | sed 's/ *$//')
   elif grep -q "^title:" <<<"$content"; then
+    # 프론트매터의 title 필드 사용
     title=$(grep -m 1 "^title:" <<<"$content" | sed 's/^title: *"\(.*\)".*$/\1/')
   else
+    # 파일명을 제목으로 사용
     title="${filename%.md}"
   fi
   
@@ -157,6 +175,9 @@ for file in "${to_publish_array[@]}"; do
     # title 확인 및 추가 (없는 경우)
     if ! grep -q "^title:" <<<"$front_matter"; then
       front_matter=$(echo "$front_matter" | sed '/^---$/a title: "'"$title"'"')
+    else
+      # 기존 title 값을 새로 찾은 title로 업데이트
+      front_matter=$(echo "$front_matter" | sed 's/^title:.*$/title: "'"$title"'"/')
     fi
     
     # 최종 내용 조합

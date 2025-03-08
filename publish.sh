@@ -9,7 +9,6 @@ BLOG_DIR="/Users/myjoo/Documents/blog"
 TARGET_DIR="$BLOG_DIR/content/english/blog"
 IMAGE_DIR="$BLOG_DIR/assets/images/blog"
 PUBLISH_TAG="#publish"
-HUGO_PATH="/opt/homebrew/bin/hugo" # 절대 경로 사용
 
 # 스크립트 실행 디렉토리로 이동
 cd "$BLOG_DIR"
@@ -20,26 +19,95 @@ mkdir -p "$IMAGE_DIR"
 
 echo "선택적 발행 시작: $PUBLISH_TAG 태그가 있는 노트만 발행합니다."
 
-# 기존 파일 목록 저장 (중복 발행 방지용)
-previously_published_files=$(find "$TARGET_DIR" -type f -name "*.md" | xargs -n1 basename)
+# 1. 현재 발행 중인 모든 파일의 목록 저장
+echo "현재 발행된 파일 목록 수집 중..."
+TARGET_FILES=$(find "$TARGET_DIR" -type f -name "*.md" | sort)
 
-# 태그가 있는 파일 찾기 - grep 명령 개선
-find "$VAULT_DIR" -type f -name "*.md" -exec grep -l "\b$PUBLISH_TAG\b" {} \; | while read file; do
+# 2. #publish 태그가 있는 모든 노트 찾기
+echo "#publish 태그가 있는 노트 찾는 중..."
+PUBLISH_FILES=$(find "$VAULT_DIR" -type f -name "*.md" -exec grep -l "\b$PUBLISH_TAG\b" {} \; | sort)
+
+# 3. TARGET_DIR에 있지만 더 이상 #publish 태그가 없는 파일 찾기
+echo "발행 취소할 노트 확인 중..."
+
+# 파일명->slug 매핑 함수
+get_slug() {
+  local filename=$(basename "$1")
+  echo "$filename" | sed 's/ /-/g' | sed 's/[^a-zA-Z0-9가-힣ㄱ-ㅎㅏ-ㅣ_.-]//g'
+}
+
+# 제목->slug 매핑 함수
+title_to_slug() {
+  echo "$1" | sed 's/ /-/g' | sed 's/[^a-zA-Z0-9가-힣ㄱ-ㅎㅏ-ㅣ_.-]//g'
+}
+
+# 파일에서 제목 추출 함수
+get_title() {
+  local file="$1"
+  local content=$(cat "$file")
+  
+  # 프론트매터에서 title 찾기
+  if [[ $content == ---* ]]; then
+    title=$(echo "$content" | grep -m 1 "^title:" | sed 's/^title: *"\(.*\)".*$/\1/')
+    
+    # title이 없으면 첫 번째 # 헤더 사용
+    if [ -z "$title" ]; then
+      title=$(echo "$content" | grep -m 1 "^# " | sed 's/^# \(.*\)$/\1/')
+    fi
+  else
+    # 프론트매터 없으면 첫 번째 # 헤더 사용
+    title=$(echo "$content" | grep -m 1 "^# " | sed 's/^# \(.*\)$/\1/')
+  fi
+  
+  # 제목이 여전히 없으면 파일명 사용
+  if [ -z "$title" ]; then
+    title=$(basename "$file" .md)
+  fi
+  
+  echo "$title"
+}
+
+# 발행 중인 파일 목록 생성
+declare -A published_files
+for file in $TARGET_FILES; do
+  title=$(get_title "$file")
+  slug=$(title_to_slug "$title")
+  published_files["$slug"]="$file"
+done
+
+# #publish 태그가 있는 노트 목록 생성
+declare -A publish_tagged_files
+for file in $PUBLISH_FILES; do
+  title=$(get_title "$file")
+  slug=$(title_to_slug "$title")
+  publish_tagged_files["$slug"]="$file"
+done
+
+# 발행 취소할 파일 찾기 및 삭제
+for slug in "${!published_files[@]}"; do
+  if [[ -z "${publish_tagged_files[$slug]}" ]]; then
+    target_file="${published_files[$slug]}"
+    echo "발행 취소: $(basename "$target_file")"
+    rm -f "$target_file"
+  fi
+done
+
+# 4. 발행 또는 업데이트할 파일 처리
+for file in $PUBLISH_FILES; do
   filename=$(basename "$file")
   rel_path=${file#$VAULT_DIR/}
   dir_path=$(dirname "$rel_path")
+  title=$(get_title "$file")
+  slug=$(title_to_slug "$title")
   
-  # URL 친화적인 파일명 생성 (한글 유지)
-  # 공백을 하이픈으로 변경하고 특수 문자만 제거
-  slug=$(echo "$filename" | sed 's/ /-/g' | sed 's/[^a-zA-Z0-9가-힣ㄱ-ㅎㅏ-ㅣ_.-]//g')
-  
-  # 이미 발행된 파일인지 확인 (중복 발행 방지)
-  if echo "$previously_published_files" | grep -q "^$slug$"; then
-    echo "이미 발행된 노트 건너뛰기: $rel_path"
-    continue
+  # 이미 발행되었는지 확인
+  if [[ -n "${published_files[$slug]}" ]]; then
+    echo "업데이트: $rel_path -> $slug.md"
+    action="update"
+  else
+    echo "새로 발행: $rel_path -> $slug.md"
+    action="new"
   fi
-  
-  echo "발행: $rel_path -> $slug"
   
   # 파일 내용 읽기
   content=$(cat "$file")
@@ -104,7 +172,8 @@ $content_without_title"
   fi
   
   # 파일 저장
-  echo "$final_content" > "$TARGET_DIR/$slug"
+  output_file="$TARGET_DIR/${slug}.md"
+  echo "$final_content" > "$output_file"
   
   # 이미지 처리
   dir=$(dirname "$file")
@@ -123,7 +192,7 @@ $content_without_title"
     fi
     
     # 이미지 경로 업데이트 - Hugo 방식으로 (macOS sed 호환성 수정)
-    sed -i '' "s|!\[\[$img\]\]|{{< image src=\"images/blog/$img_name\" >}}|g" "$TARGET_DIR/$slug"
+    sed -i '' "s|!\[\[$img\]\]|{{< image src=\"images/blog/$img_name\" >}}|g" "$output_file"
   done
   
   # Markdown 이미지 링크 스타일 (![]())
@@ -144,20 +213,17 @@ $content_without_title"
       
       # 이미지 경로 업데이트 - Hugo 방식으로 (macOS sed 호환성 수정)
       if [ -n "$img_alt" ] && [ "$img_alt" != " " ]; then
-        sed -i '' "s|!\\[.*\\]($img)|{{< image src=\"images/blog/$img_name\" caption=\"$img_alt\" >}}|g" "$TARGET_DIR/$slug"
+        sed -i '' "s|!\\[.*\\]($img)|{{< image src=\"images/blog/$img_name\" caption=\"$img_alt\" >}}|g" "$output_file"
       else
-        sed -i '' "s|!\\[.*\\]($img)|{{< image src=\"images/blog/$img_name\" >}}|g" "$TARGET_DIR/$slug"
+        sed -i '' "s|!\\[.*\\]($img)|{{< image src=\"images/blog/$img_name\" >}}|g" "$output_file"
       fi
     fi
   done
 done
 
-echo "발행 완료: $PUBLISH_TAG 태그가 있는 노트가 Hugo 블로그에 발행되었습니다."
+echo "발행 작업 완료: $PUBLISH_TAG 태그가 있는 노트를 발행하고, 태그가 제거된 노트는 발행 취소했습니다."
 
-# Hugo 사이트 빌드 - 절대 경로 사용
-echo "Hugo 사이트 빌드 중..."
-$HUGO_PATH --minify
-
+# 변경사항 Git에 커밋 및 푸시
 echo "변경사항 Git에 커밋 및 푸시 중..."
 git add .
 git commit -m "Update blog posts: $(date +'%Y-%m-%d %H:%M:%S')"

@@ -2,9 +2,10 @@
 title: "옵시디언에서 github.io 블로그로 원하는 글만 선택적으로 발행하기"
 date: 2025-03-08
 draft: false
+image: "images/blog/  # 첨부 파일 처리 - 옵시디언 Wiki 링크 스타일 ( "
 ---
 
- #github #obsidian #blog #Hugo
+
 
 옵시디언(Obsidian)에서 노트를 관리하면서 원하는 글만 골라서 GitHub Pages 블로그에 발행하는 워크플로우를 만들어보겠습니다. 이 가이드는 Hugo와 Hugoplate 테마를 사용한 방법을 중심으로 설명합니다.
 

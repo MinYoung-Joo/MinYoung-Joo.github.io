@@ -5,7 +5,7 @@ draft: false
 image: "images/blog/1741329758693.png"
 ---
 
- #anthrophic #claude #mcp
+
 ## MCP(Model Context Protocol)란?
 
 MCP(Model Context Protocol)는 Anthropic이 2024년 11월에 공개한 개방형 프로토콜로, AI 모델이 다양한 데이터 소스와 안전하게 연결될 수 있도록 하는 표준입니다. 이를 통해 Claude와 같은 AI 모델이 코드 저장소(GitHub, GitLab), API(Google Maps, YouTube, Brave), 비즈니스 도구(Slack, Notion) 및 로컬 개발 환경과 같은 외부 시스템과 상호작용할 수 있습니다.

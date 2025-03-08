@@ -243,7 +243,7 @@ $content_without_title"
   dir=$(dirname "$file")
   
   # 첨부 파일 처리 - 옵시디언 Wiki 링크 스타일 (![[ ]])
-  grep -F "![[" "$file" 2>/dev/null | sed -E 's/.*!\[\[([^]]*)\]\].*/\1/' | while read -r img; do
+  grep -F "![[" "$file" 2>/dev/null | sed -E 's/!\\[\\[([^]]+)\\]\\]/\1/g' | while read -r img; do
     img_name=$(basename "$img")
     
     # 이미지 파일 찾기 및 복사

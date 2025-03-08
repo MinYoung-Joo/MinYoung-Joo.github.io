@@ -145,25 +145,36 @@ for file in "${to_publish_array[@]}"; do
   # PUBLISH_TAG 제거
   content=$(echo "$content" | sed "s/$PUBLISH_TAG//g")
   
-  # 이미지 처리 - 특정 파일에 대한 처리
+  # 이미지 처리 - 파일 내용에서 이미지 참조 확인
   image_line=""
   dir=$(dirname "$file")
   
-  # 파일 이름에 따라 이미지 처리
-  base_filename=$(basename "$file")
-  if [[ "$base_filename" == "옵시디언에서 github.io 블로그로 원하는 글만 선택적으로 발행하기.md" ]]; then
-    if [ -f "$VAULT_DIR/attachments/screenshot_hu14038609273344937620.png" ]; then
-      cp "$VAULT_DIR/attachments/screenshot_hu14038609273344937620.png" "$IMAGE_DIR/"
-      echo "  이미지 복사: attachments/screenshot_hu14038609273344937620.png"
-      image_line="image: \"images/blog/screenshot_hu14038609273344937620.png\""
+  # 옵시디언 위키 스타일 이미지 찾기 (![[filename.png]])
+  found_images=()
+  while IFS= read -r line; do
+    if [[ "$line" == *"![["* && "$line" == *"]]"* ]]; then
+      # 이미지 이름 추출
+      img_path=$(echo "$line" | sed -n 's/.*!\[\[\([^]]*\)\]\].*/\1/p')
+      if [ -n "$img_path" ]; then
+        img_name=$(basename "$img_path")
+        found_images+=("$img_name")
+        
+        # 첫 번째 이미지는 대표 이미지로 설정
+        if [ -z "$image_line" ]; then
+          image_line="image: \"images/blog/$img_name\""
+        fi
+        
+        # 이미지 파일 복사
+        if [ -f "$VAULT_DIR/attachments/$img_name" ]; then
+          echo "  이미지 복사: attachments/$img_name"
+          cp "$VAULT_DIR/attachments/$img_name" "$IMAGE_DIR/$img_name"
+        elif [ -f "$dir/$img_name" ]; then
+          echo "  이미지 복사: $img_name"
+          cp "$dir/$img_name" "$IMAGE_DIR/$img_name"
+        fi
+      fi
     fi
-  elif [[ "$base_filename" == "AI, 굴레와 속박을 벗어라-개방형 표준 프로토콜(MCP) 활용.md" ]]; then
-    if [ -f "$VAULT_DIR/attachments/1741329758693.png" ]; then
-      cp "$VAULT_DIR/attachments/1741329758693.png" "$IMAGE_DIR/"
-      echo "  이미지 복사: attachments/1741329758693.png"
-      image_line="image: \"images/blog/1741329758693.png\""
-    fi
-  fi
+  done < "$file"
   
   # 프론트매터 처리
   if [[ $content == ---* ]]; then
@@ -231,51 +242,17 @@ $content_without_title"
     fi
   fi
   
-  # 파일 저장
-  echo "$final_content" > "$output_file"
+  # 이미지 태그 변환 준비
+  temp_content="$final_content"
   
-  # 이미지 태그 변환 - 중요: 파일에 따라 직접 처리
-  if [[ "$base_filename" == "옵시디언에서 github.io 블로그로 원하는 글만 선택적으로 발행하기.md" ]]; then
-    # 첫 번째 파일의 이미지 태그 변환
-    cat "$output_file" | grep -q "!\\[\\[screenshot_hu14038609273344937620.png\\]\\]"
-    if [ $? -eq 0 ]; then
-      # 이미지 태그 찾음 - 직접 파일 내용 수정
-      temp_content=$(cat "$output_file")
-      updated_content=$(echo "$temp_content" | sed 's|!\\[\\[screenshot_hu14038609273344937620.png\\]\\]|{{< image src="images/blog/screenshot_hu14038609273344937620.png" >}}|g')
-      echo "$updated_content" > "$output_file"
-      echo "  이미지 태그 변환 완료: screenshot_hu14038609273344937620.png"
-    else
-      # 직접 원본 파일에서 변환해서 추가
-      cat "$file" | grep -q "!\\[\\[screenshot_hu14038609273344937620.png\\]\\]"
-      if [ $? -eq 0 ]; then
-        temp_content=$(cat "$output_file")
-        # 이스케이프 없는 단순 문자열 교체 시도
-        updated_content=$(echo "$temp_content" | sed 's|!\[\[screenshot_hu14038609273344937620.png\]\]|{{< image src="images/blog/screenshot_hu14038609273344937620.png" >}}|g')
-        echo "$updated_content" > "$output_file"
-        echo "  이미지 태그 변환 완료: screenshot_hu14038609273344937620.png (방법 2)"
-      fi
-    fi
-  elif [[ "$base_filename" == "AI, 굴레와 속박을 벗어라-개방형 표준 프로토콜(MCP) 활용.md" ]]; then
-    # 두 번째 파일의 이미지 태그 변환
-    cat "$output_file" | grep -q "!\\[\\[1741329758693.png\\]\\]"
-    if [ $? -eq 0 ]; then
-      # 이미지 태그 찾음 - 직접 파일 내용 수정
-      temp_content=$(cat "$output_file")
-      updated_content=$(echo "$temp_content" | sed 's|!\\[\\[1741329758693.png\\]\\]|{{< image src="images/blog/1741329758693.png" >}}|g')
-      echo "$updated_content" > "$output_file"
-      echo "  이미지 태그 변환 완료: 1741329758693.png"
-    else
-      # 직접 원본 파일에서 변환해서 추가
-      cat "$file" | grep -q "!\\[\\[1741329758693.png\\]\\]"
-      if [ $? -eq 0 ]; then
-        temp_content=$(cat "$output_file")
-        # 이스케이프 없는 단순 문자열 교체 시도
-        updated_content=$(echo "$temp_content" | sed 's|!\[\[1741329758693.png\]\]|{{< image src="images/blog/1741329758693.png" >}}|g')
-        echo "$updated_content" > "$output_file"
-        echo "  이미지 태그 변환 완료: 1741329758693.png (방법 2)"
-      fi
-    fi
-  fi
+  # 이미지 태그 변환 실행 - 모든 옵시디언 위키 링크를 Hugo 이미지 태그로 변환
+  for img_name in "${found_images[@]}"; do
+    # 일반 옵시디언 문법 패턴을 Hugo 태그로 변환
+    temp_content=$(echo "$temp_content" | sed "s|!\[\[$img_name\]\]|{{< image src=\"images/blog/$img_name\" >}}|g")
+  done
+  
+  # 최종 내용 저장
+  echo "$temp_content" > "$output_file"
 done
 
 echo "발행 작업 완료: $PUBLISH_TAG 태그가 있는 노트를 발행하고, 태그가 제거된 노트는 발행 취소했습니다."

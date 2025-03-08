@@ -39,16 +39,13 @@ if [ -d "$VAULT_DIR" ]; then
   md_files_count=$(find "$VAULT_DIR" -type f -name "*.md" | wc -l)
   echo "볼트에서 발견된 마크다운 파일 수: $md_files_count"
   
-  # 모든 마크다운 파일 찾기
-  all_md_files=$(find "$VAULT_DIR" -type f -name "*.md")
-  
   # 발행할 파일 목록 초기화
   to_publish_files=""
   
-  # 각 파일의 상단 부분에서만 #publish 태그 찾기
-  for md_file in $all_md_files; do
-    # 파일의 처음 20줄만 검사 (프론트매터와 문서 시작 부분에 있는 태그만 찾기 위함)
-    if head -n 20 "$md_file" | grep -q "\b$PUBLISH_TAG\b"; then
+  # 각 파일의 상단 부분에서만 #publish 태그 찾기 (find -print0와 while read -r -d $'\0'로 파일명 처리 문제 해결)
+  find "$VAULT_DIR" -type f -name "*.md" -print0 | while IFS= read -r -d $'\0' md_file; do
+    # 파일의 처음 3줄만 검사 (프론트매터와 문서 시작 부분에 있는 태그만 찾기 위함)
+    if head -n 3 "$md_file" | grep -q "\b$PUBLISH_TAG\b"; then
       if [ -z "$to_publish_files" ]; then
         to_publish_files="$md_file"
       else
@@ -57,7 +54,10 @@ $md_file"
       fi
       echo "발행 대상 파일 발견: $(basename "$md_file")"
     fi
-  done
+  done > /tmp/publish_files.txt
+  
+  # 임시 파일에서 발행 파일 목록 읽기 (서브쉘에서의 변수 문제 해결)
+  to_publish_files=$(cat /tmp/publish_files.txt)
   
   # 디버깅: 발행할 파일 개수와 목록 출력
   publish_count=$(echo "$to_publish_files" | grep -v "^$" | wc -l)
@@ -82,7 +82,18 @@ done
 
 # 발행할 파일의 제목 목록 만들기
 publish_titles=()
-for file in $to_publish_files; do
+
+# IFS 백업 및 설정 변경 (파일명에 공백이나 특수문자가 있을 때 처리)
+OLDIFS="$IFS"
+IFS=$'\n'
+
+# to_publish_files를 배열로 변환
+to_publish_array=($to_publish_files)
+
+# IFS 복원
+IFS="$OLDIFS"
+
+for file in "${to_publish_array[@]}"; do
   if [ -f "$file" ]; then
     content=$(cat "$file" 2>/dev/null || echo "")
     if [[ $content == \#* ]]; then
@@ -136,9 +147,11 @@ if [ -z "$to_publish_files" ]; then
   echo "1. #publish 태그가 없거나 형식이 다름 (예: 공백이나 특수문자 포함)"
   echo "2. 경로 접근 권한 문제"
   echo "3. grep 패턴 매칭 문제"
+  exit 0
 fi
 
-for file in $to_publish_files; do
+# 각 파일 처리
+for file in "${to_publish_array[@]}"; do
   # 파일 존재 확인
   if [ ! -f "$file" ]; then
     echo "파일을 찾을 수 없습니다: $file"

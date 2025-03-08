@@ -180,6 +180,23 @@ for file in "${to_publish_array[@]}"; do
       front_matter=$(echo "$front_matter" | sed 's/^title:.*$/title: "'"$title"'"/')
     fi
     
+    # image 필드 확인 (이미지가 있는 경우 추가)
+    if ! grep -q "^image:" <<<"$front_matter"; then
+      # 첫 번째 이미지 찾기 - 옵시디언 위키 링크 스타일
+      first_image=$(grep -o -m 1 "!\[\[.*\]\]" "$file" | sed 's/!\[\[\(.*\)\]\]/\1/g')
+      if [ -n "$first_image" ]; then
+        img_name=$(basename "$first_image")
+        front_matter=$(echo "$front_matter" | sed '/^---$/a image: "images/blog/'"$img_name"'"')
+      else
+        # 첫 번째 이미지 찾기 - 마크다운 링크 스타일
+        first_image=$(grep -o -m 1 "!\[.*\](.*)" "$file" | sed 's/!\[.*\](\(.*\))/\1/g')
+        if [ -n "$first_image" ]; then
+          img_name=$(basename "$first_image")
+          front_matter=$(echo "$front_matter" | sed '/^---$/a image: "images/blog/'"$img_name"'"')
+        fi
+      fi
+    fi
+    
     # 최종 내용 조합
     final_content="${front_matter}${rest_content}"
   else
@@ -191,12 +208,28 @@ for file in "${to_publish_array[@]}"; do
       content_without_title="$content"
     fi
     
+    # 첫 번째 이미지 찾기
+    first_image=$(grep -o -m 1 "!\[\[.*\]\]" "$file" | sed 's/!\[\[\(.*\)\]\]/\1/g')
+    image_line=""
+    if [ -n "$first_image" ]; then
+      img_name=$(basename "$first_image")
+      image_line="image: \"images/blog/$img_name\""
+    else
+      # 마크다운 링크 스타일 이미지 확인
+      first_image=$(grep -o -m 1 "!\[.*\](.*)" "$file" | sed 's/!\[.*\](\(.*\))/\1/g')
+      if [ -n "$first_image" ]; then
+        img_name=$(basename "$first_image")
+        image_line="image: \"images/blog/$img_name\""
+      fi
+    fi
+    
     # 프론트매터 추가
     date=$(date +"%Y-%m-%d")
     final_content="---
 title: \"$title\"
 date: $date
 draft: false
+$image_line
 ---
 
 $content_without_title"

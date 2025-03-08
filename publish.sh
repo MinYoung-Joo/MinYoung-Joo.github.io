@@ -26,8 +26,8 @@ find "$VAULT_DIR" -type f -name "*.md" -exec grep -l "$PUBLISH_TAG" {} \; | whil
   rel_path=${file#$VAULT_DIR/}
   dir_path=$(dirname "$rel_path")
   
-  # 파일명에서 공백 및 특수문자 처리 (Hugo 친화적으로)
-  clean_filename=$(echo "$filename" | sed 's/ /-/g' | sed 's/[^a-zA-Z0-9-_.]/-/g' | tr '[:upper:]' '[:lower:]')
+  # 파일명에서 공백 및 특수문자 처리 (Hugo 친화적으로) - 정규식 수정
+  clean_filename=$(echo "$filename" | sed 's/ /-/g' | sed 's/[^a-zA-Z0-9_.-]/-/g' | tr '[:upper:]' '[:lower:]')
   
   echo "발행: $rel_path -> $clean_filename"
   
@@ -45,7 +45,8 @@ find "$VAULT_DIR" -type f -name "*.md" -exec grep -l "$PUBLISH_TAG" {} \; | whil
     
     # draft: false 추가 (없는 경우)
     if ! echo "$cleaned_content" | grep -q "draft:"; then
-      cleaned_content=$(echo "$cleaned_content" | sed '/^---$/i draft: false')
+      cleaned_content=$(echo "$cleaned_content" | sed '/^---$/i\\
+draft: false')
     fi
     
     # image 필드 확인 (이미지가 있는 경우 추가)
@@ -54,7 +55,8 @@ find "$VAULT_DIR" -type f -name "*.md" -exec grep -l "$PUBLISH_TAG" {} \; | whil
       first_image=$(grep -o -m 1 "!\[\[.*\]\]" "$file" | sed 's/!\[\[\(.*\)\]\]/\1/g')
       if [ -n "$first_image" ]; then
         img_name=$(basename "$first_image")
-        cleaned_content=$(echo "$cleaned_content" | sed "/^---$/i image: \"images/blog/$img_name\"")
+        cleaned_content=$(echo "$cleaned_content" | sed '/^---$/i\\
+image: "images/blog/'"$img_name"'"')
       fi
     fi
     
@@ -102,8 +104,8 @@ $content"
       cp "$VAULT_DIR/attachments/$img" "$IMAGE_DIR/$img_name"
     fi
     
-    # 이미지 경로 업데이트 - Hugo 방식으로
-    sed -i "s|!\[\[$img\]\]|{{< image src=\"images/blog/$img_name\" >}}|g" "$TARGET_DIR/$clean_filename"
+    # 이미지 경로 업데이트 - Hugo 방식으로 (macOS sed 호환성 수정)
+    sed -i '' "s|!\[\[$img\]\]|{{< image src=\"images/blog/$img_name\" >}}|g" "$TARGET_DIR/$clean_filename"
   done
   
   # Markdown 이미지 링크 스타일 (![]())
@@ -122,11 +124,11 @@ $content"
       # 이미지 설명 추출
       img_alt=$(grep -o "!\[.*\]($img)" "$file" | sed 's/!\[\(.*\)\](.*)$/\1/g')
       
-      # 이미지 경로 업데이트 - Hugo 방식으로
+      # 이미지 경로 업데이트 - Hugo 방식으로 (macOS sed 호환성 수정)
       if [ -n "$img_alt" ] && [ "$img_alt" != " " ]; then
-        sed -i "s|!\\[.*\\]($img)|{{< image src=\"images/blog/$img_name\" caption=\"$img_alt\" >}}|g" "$TARGET_DIR/$clean_filename"
+        sed -i '' "s|!\\[.*\\]($img)|{{< image src=\"images/blog/$img_name\" caption=\"$img_alt\" >}}|g" "$TARGET_DIR/$clean_filename"
       else
-        sed -i "s|!\\[.*\\]($img)|{{< image src=\"images/blog/$img_name\" >}}|g" "$TARGET_DIR/$clean_filename"
+        sed -i '' "s|!\\[.*\\]($img)|{{< image src=\"images/blog/$img_name\" >}}|g" "$TARGET_DIR/$clean_filename"
       fi
     fi
   done

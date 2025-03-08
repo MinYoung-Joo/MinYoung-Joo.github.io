@@ -145,15 +145,13 @@ for file in "${to_publish_array[@]}"; do
   # PUBLISH_TAG 제거
   content=$(echo "$content" | sed "s/$PUBLISH_TAG//g")
   
-  # 이미지 처리 - 간소화된 접근 (이미지 정보 없음)
+  # 이미지 처리 - 특정 파일에 대한 처리
   image_line=""
   dir=$(dirname "$file")
   
-  # 특수 이미지 처리 - 전체 이미지 복사
-  # 옵시디언에서 github.io 블로그로 원하는 글만 선택적으로 발행하기.md 파일인 경우
+  # 파일 이름에 따라 이미지 처리
   base_filename=$(basename "$file")
   if [[ "$base_filename" == "옵시디언에서 github.io 블로그로 원하는 글만 선택적으로 발행하기.md" ]]; then
-    # attachments 디렉토리의 특정 이미지 파일
     if [ -f "$VAULT_DIR/attachments/screenshot_hu14038609273344937620.png" ]; then
       cp "$VAULT_DIR/attachments/screenshot_hu14038609273344937620.png" "$IMAGE_DIR/"
       echo "  이미지 복사: attachments/screenshot_hu14038609273344937620.png"
@@ -236,11 +234,47 @@ $content_without_title"
   # 파일 저장
   echo "$final_content" > "$output_file"
   
-  # 이미지 태그 변환 - 특수 파일에 대해 직접 치환
+  # 이미지 태그 변환 - 중요: 파일에 따라 직접 처리
   if [[ "$base_filename" == "옵시디언에서 github.io 블로그로 원하는 글만 선택적으로 발행하기.md" ]]; then
-    sed -i '' 's/!\[\[screenshot_hu14038609273344937620.png\]\]/{{< image src="images\/blog\/screenshot_hu14038609273344937620.png" >}}/g' "$output_file"
+    # 첫 번째 파일의 이미지 태그 변환
+    cat "$output_file" | grep -q "!\\[\\[screenshot_hu14038609273344937620.png\\]\\]"
+    if [ $? -eq 0 ]; then
+      # 이미지 태그 찾음 - 직접 파일 내용 수정
+      temp_content=$(cat "$output_file")
+      updated_content=$(echo "$temp_content" | sed 's|!\\[\\[screenshot_hu14038609273344937620.png\\]\\]|{{< image src="images/blog/screenshot_hu14038609273344937620.png" >}}|g')
+      echo "$updated_content" > "$output_file"
+      echo "  이미지 태그 변환 완료: screenshot_hu14038609273344937620.png"
+    else
+      # 직접 원본 파일에서 변환해서 추가
+      cat "$file" | grep -q "!\\[\\[screenshot_hu14038609273344937620.png\\]\\]"
+      if [ $? -eq 0 ]; then
+        temp_content=$(cat "$output_file")
+        # 이스케이프 없는 단순 문자열 교체 시도
+        updated_content=$(echo "$temp_content" | sed 's|!\[\[screenshot_hu14038609273344937620.png\]\]|{{< image src="images/blog/screenshot_hu14038609273344937620.png" >}}|g')
+        echo "$updated_content" > "$output_file"
+        echo "  이미지 태그 변환 완료: screenshot_hu14038609273344937620.png (방법 2)"
+      fi
+    fi
   elif [[ "$base_filename" == "AI, 굴레와 속박을 벗어라-개방형 표준 프로토콜(MCP) 활용.md" ]]; then
-    sed -i '' 's/!\[\[1741329758693.png\]\]/{{< image src="images\/blog\/1741329758693.png" >}}/g' "$output_file"
+    # 두 번째 파일의 이미지 태그 변환
+    cat "$output_file" | grep -q "!\\[\\[1741329758693.png\\]\\]"
+    if [ $? -eq 0 ]; then
+      # 이미지 태그 찾음 - 직접 파일 내용 수정
+      temp_content=$(cat "$output_file")
+      updated_content=$(echo "$temp_content" | sed 's|!\\[\\[1741329758693.png\\]\\]|{{< image src="images/blog/1741329758693.png" >}}|g')
+      echo "$updated_content" > "$output_file"
+      echo "  이미지 태그 변환 완료: 1741329758693.png"
+    else
+      # 직접 원본 파일에서 변환해서 추가
+      cat "$file" | grep -q "!\\[\\[1741329758693.png\\]\\]"
+      if [ $? -eq 0 ]; then
+        temp_content=$(cat "$output_file")
+        # 이스케이프 없는 단순 문자열 교체 시도
+        updated_content=$(echo "$temp_content" | sed 's|!\[\[1741329758693.png\]\]|{{< image src="images/blog/1741329758693.png" >}}|g')
+        echo "$updated_content" > "$output_file"
+        echo "  이미지 태그 변환 완료: 1741329758693.png (방법 2)"
+      fi
+    fi
   fi
 done
 

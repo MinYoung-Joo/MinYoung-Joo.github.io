@@ -486,7 +486,7 @@ which hugo  # Hugo 경로 확인
 
 이 방법을 통해 옵시디언에서 작성한 노트 중 원하는 것만 선택적으로 Hugo 블로그로 발행할 수 있습니다. `` 태그만 추가하고 단축키 한 번으로 발행 과정이 자동화되어 편리하게 블로그를 관리할 수 있습니다.
 
-{{< image src="images/blog/screenshot_hu14.png" >}}
+{{< image src="images/blog/screenshot.png" >}}
 ### 참고
 * https://themes.gohugo.io/themes/hugoplate/
 * https://gohugo.io/getting-started/usage/

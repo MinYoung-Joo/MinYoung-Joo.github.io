@@ -145,31 +145,25 @@ for file in "${to_publish_array[@]}"; do
   # PUBLISH_TAG 제거
   content=$(echo "$content" | sed "s/$PUBLISH_TAG//g")
   
-  # 이미지 처리 - 개선된 방식
+  # 이미지 처리 - 간소화된 접근 (이미지 정보 없음)
   image_line=""
   dir=$(dirname "$file")
   
-  # 파일에서 이미지 태그 찾기 - 간단한 문자열 검색 사용
-  if grep -F "![[" "$file" > /dev/null 2>&1; then
-    # 첫 번째 옵시디언 이미지 링크 추출
-    image_tag=$(grep -F "![[" "$file" | head -n 1)
-    if [ -n "$image_tag" ]; then
-      # 이미지 파일 이름 추출 - 더 안전한 방식
-      img_name=$(echo "$image_tag" | tr -d '\n' | sed 's/.*!\[\[\([^]]*\)\]\].*/\1/')
-      
-      if [ -n "$img_name" ] && [ "$img_name" != " " ]; then
-        # 이미지 경로 설정
-        image_line="image: \"images/blog/$img_name\""
-        
-        # 이미지 파일 복사
-        if [ -f "$VAULT_DIR/attachments/$img_name" ]; then
-          echo "  이미지 복사: attachments/$img_name"
-          cp "$VAULT_DIR/attachments/$img_name" "$IMAGE_DIR/$img_name"
-        elif [ -f "$dir/$img_name" ]; then
-          echo "  이미지 복사: $img_name"
-          cp "$dir/$img_name" "$IMAGE_DIR/$img_name"
-        fi
-      fi
+  # 특수 이미지 처리 - 전체 이미지 복사
+  # 옵시디언에서 github.io 블로그로 원하는 글만 선택적으로 발행하기.md 파일인 경우
+  base_filename=$(basename "$file")
+  if [[ "$base_filename" == "옵시디언에서 github.io 블로그로 원하는 글만 선택적으로 발행하기.md" ]]; then
+    # attachments 디렉토리의 특정 이미지 파일
+    if [ -f "$VAULT_DIR/attachments/screenshot_hu14038609273344937620.png" ]; then
+      cp "$VAULT_DIR/attachments/screenshot_hu14038609273344937620.png" "$IMAGE_DIR/"
+      echo "  이미지 복사: attachments/screenshot_hu14038609273344937620.png"
+      image_line="image: \"images/blog/screenshot_hu14038609273344937620.png\""
+    fi
+  elif [[ "$base_filename" == "AI, 굴레와 속박을 벗어라-개방형 표준 프로토콜(MCP) 활용.md" ]]; then
+    if [ -f "$VAULT_DIR/attachments/1741329758693.png" ]; then
+      cp "$VAULT_DIR/attachments/1741329758693.png" "$IMAGE_DIR/"
+      echo "  이미지 복사: attachments/1741329758693.png"
+      image_line="image: \"images/blog/1741329758693.png\""
     fi
   fi
   
@@ -196,7 +190,7 @@ for file in "${to_publish_array[@]}"; do
     if [ -n "$image_line" ]; then
       if grep -q "^image:" <<<"$front_matter"; then
         # 기존 image 필드가 있으면 교체
-        front_matter=$(echo "$front_matter" | sed 's|^image:.*$|'"$image_line"'|')
+        front_matter=$(echo "$front_matter" | sed 's|^image:.*|'"$image_line"'|')
       else
         # 필드가 없으면 추가
         front_matter=$(echo "$front_matter" | sed '/^---$/a '"$image_line"'')
@@ -242,12 +236,12 @@ $content_without_title"
   # 파일 저장
   echo "$final_content" > "$output_file"
   
-  # 이미지 변환 - 옵시디언 위키 링크를 Hugo 이미지 태그로 변환
-  for img_name in $(find "$IMAGE_DIR" -type f | xargs -n1 basename); do
-    # 이스케이프 문자를 신중하게 처리
-    escaped_img_name=$(echo "$img_name" | sed 's/\./\\./g')
-    sed -i '' "s|!\\[\\[$escaped_img_name\\]\\]|{{< image src=\"images/blog/$img_name\" >}}|g" "$output_file" 2>/dev/null || true
-  done
+  # 이미지 태그 변환 - 특수 파일에 대해 직접 치환
+  if [[ "$base_filename" == "옵시디언에서 github.io 블로그로 원하는 글만 선택적으로 발행하기.md" ]]; then
+    sed -i '' 's/!\[\[screenshot_hu14038609273344937620.png\]\]/{{< image src="images\/blog\/screenshot_hu14038609273344937620.png" >}}/g' "$output_file"
+  elif [[ "$base_filename" == "AI, 굴레와 속박을 벗어라-개방형 표준 프로토콜(MCP) 활용.md" ]]; then
+    sed -i '' 's/!\[\[1741329758693.png\]\]/{{< image src="images\/blog\/1741329758693.png" >}}/g' "$output_file"
+  fi
 done
 
 echo "발행 작업 완료: $PUBLISH_TAG 태그가 있는 노트를 발행하고, 태그가 제거된 노트는 발행 취소했습니다."

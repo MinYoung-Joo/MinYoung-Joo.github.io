@@ -34,8 +34,19 @@ fi
 # PUBLISH_TAG가 있는 노트 찾기
 echo "#publish 태그가 있는 노트 찾는 중..."
 if [ -d "$VAULT_DIR" ]; then
-  # 태그가 있는 파일 목록 생성
-  to_publish_files=$(find "$VAULT_DIR" -type f -name "*.md" -exec grep -l "$PUBLISH_TAG" {} \; 2>/dev/null || echo "")
+  echo "볼트 디렉토리 확인: $VAULT_DIR 존재함"
+  # 디버깅: 전체 마크다운 파일 개수 확인
+  md_files_count=$(find "$VAULT_DIR" -type f -name "*.md" | wc -l)
+  echo "볼트에서 발견된 마크다운 파일 수: $md_files_count"
+  
+  # 태그가 있는 파일 목록 생성 (더 정확한 grep 패턴 사용)
+  to_publish_files=$(find "$VAULT_DIR" -type f -name "*.md" -exec grep -l "\b$PUBLISH_TAG\b" {} \; 2>/dev/null || echo "")
+  
+  # 디버깅: 발행할 파일 개수와 목록 출력
+  publish_count=$(echo "$to_publish_files" | grep -v "^$" | wc -l)
+  echo "발행 대상 파일 수: $publish_count"
+  echo "발행 대상 파일 목록:"
+  echo "$to_publish_files" | sed 's/^/  - /'
 else
   echo "옵시디언 볼트 디렉토리를 찾을 수 없습니다: $VAULT_DIR"
   exit 1
@@ -99,6 +110,15 @@ for file in $published_files; do
 done
 
 # 발행 또는 업데이트할 노트 처리
+# 디버깅: to_publish_files가 비어있는지 확인
+if [ -z "$to_publish_files" ]; then
+  echo "경고: 발행할 파일이 없습니다. #publish 태그가 있는 파일을 찾지 못했습니다."
+  echo "가능한 원인:"
+  echo "1. #publish 태그가 없거나 형식이 다름 (예: 공백이나 특수문자 포함)"
+  echo "2. 경로 접근 권한 문제"
+  echo "3. grep 패턴 매칭 문제"
+fi
+
 for file in $to_publish_files; do
   # 파일 존재 확인
   if [ ! -f "$file" ]; then

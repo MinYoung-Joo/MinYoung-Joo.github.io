@@ -23,20 +23,20 @@ echo "선택적 발행 시작: $PUBLISH_TAG 태그가 있는 노트만 발행합
 echo "현재 발행된 파일 목록 수집 중..."
 TARGET_FILES=$(find "$TARGET_DIR" -type f -name "*.md" | sort)
 
-# 2. #publish 태그가 있는 모든 노트 찾기
+# 2. #publish 태그가 있는 모든 노트 찾기 - 단어 경계를 사용하여 정확한 태그만 매칭
 echo "#publish 태그가 있는 노트 찾는 중..."
 PUBLISH_FILES=$(find "$VAULT_DIR" -type f -name "*.md" -exec grep -l "\b$PUBLISH_TAG\b" {} \; | sort)
 
 # 3. TARGET_DIR에 있지만 더 이상 #publish 태그가 없는 파일 찾기
 echo "발행 취소할 노트 확인 중..."
 
-# 파일명->slug 매핑 함수
+# 파일명->slug 매핑 함수 - 한글 문자 범위 추가
 get_slug() {
   local filename=$(basename "$1")
   echo "$filename" | sed 's/ /-/g' | sed 's/[^a-zA-Z0-9가-힣ㄱ-ㅎㅏ-ㅣ_.-]//g'
 }
 
-# 제목->slug 매핑 함수
+# 제목->slug 매핑 함수 - 한글 문자 범위 추가
 title_to_slug() {
   echo "$1" | sed 's/ /-/g' | sed 's/[^a-zA-Z0-9가-힣ㄱ-ㅎㅏ-ㅣ_.-]//g'
 }
@@ -171,7 +171,7 @@ $image_line
 $content_without_title"
   fi
   
-  # 파일 저장
+  # 파일 저장 - .md 확장자 추가
   output_file="$TARGET_DIR/${slug}.md"
   echo "$final_content" > "$output_file"
   

@@ -161,6 +161,7 @@ for file in "${to_publish_array[@]}"; do
         
         # 첫 번째 이미지는 대표 이미지로 설정
         if [ -z "$image_line" ]; then
+          # 이미지 라인을 미리 형식화하여 저장 (변수만 포함)
           image_line="image: \"images/blog/$img_name\""
         fi
         
@@ -195,18 +196,39 @@ for file in "${to_publish_array[@]}"; do
       front_matter=$(echo "$front_matter" | sed 's/^title:.*$/title: "'"$title"'"/')
     fi
     
-    # image 필드 처리
+    # image 필드 처리 - 여기를 수정
     if [ -n "$image_line" ]; then
+      # 이미지 필드가 이미 있는지 확인
       if grep -q "^image:" <<<"$front_matter"; then
-        # 기존 image 필드가 있으면 교체
-        front_matter=$(echo "$front_matter" | sed 's|^image:.*|'"$image_line"'|')
+        # 이미지 필드 교체 (sed 대신 awk 사용)
+        new_front_matter=""
+        while IFS= read -r line; do
+          if [[ "$line" == "image:"* ]]; then
+            echo "$image_line" >> /tmp/front_matter.tmp
+          else
+            echo "$line" >> /tmp/front_matter.tmp
+          fi
+        done <<< "$front_matter"
+        front_matter=$(cat /tmp/front_matter.tmp)
+        rm /tmp/front_matter.tmp
       else
-        # 필드가 없으면 추가
-        front_matter=$(echo "$front_matter" | sed '/^---$/a '"$image_line"'')
+        # 이미지 필드 추가 - 안전한 방식으로
+        echo "$front_matter" | sed '/^---$/a '"$image_line" > /tmp/front_matter.tmp
+        front_matter=$(cat /tmp/front_matter.tmp)
+        rm /tmp/front_matter.tmp
       fi
     else
-      # 이미지가 없는 경우, image 필드 제거
-      front_matter=$(echo "$front_matter" | sed '/^image:/d')
+      # 이미지가 없는 경우 이미지 필드 제거
+      if grep -q "^image:" <<<"$front_matter"; then
+        new_front_matter=""
+        while IFS= read -r line; do
+          if [[ "$line" != "image:"* ]]; then
+            echo "$line" >> /tmp/front_matter.tmp
+          fi
+        done <<< "$front_matter"
+        front_matter=$(cat /tmp/front_matter.tmp)
+        rm /tmp/front_matter.tmp
+      fi
     fi
     
     # 최종 내용 조합

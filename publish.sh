@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# 환경 설정
+export PATH="$PATH:/opt/homebrew/bin"
+
 # 설정 - 경로를 실제 환경에 맞게 수정 (따옴표로 경로 처리)
 VAULT_DIR="/Users/myjoo/Library/Mobile Documents/iCloud~md~obsidian/Documents/myjoo"
 BLOG_DIR="/Users/myjoo/Documents/blog"
@@ -105,8 +108,6 @@ for file in $to_publish_files; do
   
   # 노트 정보 추출
   filename=$(basename "$file")
-  rel_path=${file#$VAULT_DIR/}
-  dir_path=$(dirname "$rel_path")
   
   # URL 친화적인 파일명 생성 (한글 유지)
   # 공백을 하이픈으로 변경하고 특수 문자만 제거

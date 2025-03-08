@@ -1,14 +1,13 @@
 ---
-title: "옵시디언에서 GitHub Pages로 선택적 발행하기: Hugo와 Shell Commands를 활용한 방법"
+title: "블로그 디렉토리 생성"
 date: 2025-03-08
 draft: false
 image: "images/blog/ "
 ---
 
 
-# 옵시디언에서 GitHub Pages로 선택적 발행하기: Hugo와 Shell Commands를 활용한 방법
 
-옵시디언에서 모든 노트를 관리하면서 원하는 글만 GitHub Pages 블로그에 발행하는 워크플로우를 만들어보겠습니다. 이 가이드는 Hugo와 Hugoplate 테마를 사용한 방법을 중심으로 설명합니다.
+옵시디언(Obsidian)에서 노트를 관리하면서 원하는 글만 골라서 GitHub Pages 블로그에 발행하는 워크플로우를 만들어보겠습니다. 이 가이드는 Hugo와 Hugoplate 테마를 사용한 방법을 중심으로 설명합니다.
 
 ## 목차
 
@@ -81,8 +80,8 @@ GitHub Pages 설정:
 export PATH="$PATH:/opt/homebrew/bin"
 
 # 설정 - 경로를 실제 환경에 맞게 수정 (따옴표로 경로 처리)
-VAULT_DIR="/Users/myjoo/Library/Mobile Documents/iCloud~md~obsidian/Documents/myjoo"
-BLOG_DIR="/Users/myjoo/Documents/blog"
+VAULT_DIR="/Users/user_name/Library/Mobile Documents/iCloud~md~obsidian/Documents/your_vault_name"
+BLOG_DIR="/Users/user_name/Documents/blog"
 TARGET_DIR="$BLOG_DIR/content/english/blog"
 IMAGE_DIR="$BLOG_DIR/assets/images/blog"
 PUBLISH_TAG=""
@@ -444,7 +443,6 @@ draft: false
 스크립트에서 모든 경로가 실제 환경에 맞게 수정되었는지 확인합니다:
 - `VAULT_DIR`: 옵시디언 볼트 경로
 - `BLOG_DIR`: Hugo 블로그 경로
-- `HUGO_PATH`: Hugo 실행 파일 경로
 
 ### 6.2 권한 문제
 

@@ -39,14 +39,33 @@ if [ -d "$VAULT_DIR" ]; then
   md_files_count=$(find "$VAULT_DIR" -type f -name "*.md" | wc -l)
   echo "볼트에서 발견된 마크다운 파일 수: $md_files_count"
   
-  # 태그가 있는 파일 목록 생성 (더 정확한 grep 패턴 사용)
-  to_publish_files=$(find "$VAULT_DIR" -type f -name "*.md" -exec grep -l "\b$PUBLISH_TAG\b" {} \; 2>/dev/null || echo "")
+  # 모든 마크다운 파일 찾기
+  all_md_files=$(find "$VAULT_DIR" -type f -name "*.md")
+  
+  # 발행할 파일 목록 초기화
+  to_publish_files=""
+  
+  # 각 파일의 상단 부분에서만 #publish 태그 찾기
+  for md_file in $all_md_files; do
+    # 파일의 처음 20줄만 검사 (프론트매터와 문서 시작 부분에 있는 태그만 찾기 위함)
+    if head -n 20 "$md_file" | grep -q "\b$PUBLISH_TAG\b"; then
+      if [ -z "$to_publish_files" ]; then
+        to_publish_files="$md_file"
+      else
+        to_publish_files="$to_publish_files
+$md_file"
+      fi
+      echo "발행 대상 파일 발견: $(basename "$md_file")"
+    fi
+  done
   
   # 디버깅: 발행할 파일 개수와 목록 출력
   publish_count=$(echo "$to_publish_files" | grep -v "^$" | wc -l)
   echo "발행 대상 파일 수: $publish_count"
-  echo "발행 대상 파일 목록:"
-  echo "$to_publish_files" | sed 's/^/  - /'
+  if [ "$publish_count" -gt 0 ]; then
+    echo "발행 대상 파일 목록:"
+    echo "$to_publish_files" | sed 's/^/  - /'
+  fi
 else
   echo "옵시디언 볼트 디렉토리를 찾을 수 없습니다: $VAULT_DIR"
   exit 1

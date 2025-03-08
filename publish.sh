@@ -67,9 +67,18 @@ for file in $to_publish_files; do
   fi
 done
 
-# 발행 취소할 파일 찾기
+# 발행 취소할 파일 찾기 (_index.md와 post-숫자.md 패턴 제외)
 for file in $published_files; do
   if [ -f "$file" ]; then
+    # 파일 이름만 추출
+    base_filename=$(basename "$file")
+    
+    # _index.md와 post-숫자.md 패턴은 삭제에서 제외
+    if [[ "$base_filename" == "_index.md" || "$base_filename" =~ ^post-[0-9]+\.md$ ]]; then
+      echo "시스템 파일 보존: $base_filename"
+      continue
+    fi
+    
     title=$(grep -m 1 "^title:" "$file" 2>/dev/null | sed 's/^title: *"\(.*\)".*$/\1/' || basename "$file" .md)
     should_unpublish=true
     
@@ -99,6 +108,13 @@ for file in $to_publish_files; do
   
   # 노트 정보 추출
   filename=$(basename "$file")
+  rel_path=${file#$VAULT_DIR/}
+  dir_path=$(dirname "$rel_path")
+  
+  # URL 친화적인 파일명 생성 (한글 유지)
+  # 공백을 하이픈으로 변경하고 특수 문자만 제거
+  slug=$(echo "$filename" | sed 's/ /-/g' | sed 's/[^a-zA-Z0-9가-힣ㄱ-ㅎㅏ-ㅣ_.-]//g')
+  output_file="$TARGET_DIR/$slug"
   
   # 내용 읽기
   content=$(cat "$file" 2>/dev/null || echo "")
@@ -111,11 +127,6 @@ for file in $to_publish_files; do
   else
     title="${filename%.md}"
   fi
-  
-  # 제목에서 특수문자 제거
-  safe_title=$(echo "$title" | tr -d '"')
-  output_filename="${safe_title}.md"
-  output_file="$TARGET_DIR/$output_filename"
   
   # 발행 상태 확인
   if [ -f "$output_file" ]; then
@@ -140,7 +151,17 @@ for file in $to_publish_files; do
     
     # title 확인 및 추가 (없는 경우)
     if ! grep -q "^title:" <<<"$front_matter"; then
-      front_matter=$(echo "$front_matter" | sed '/^---$/a title: "'"$safe_title"'"')
+      front_matter=$(echo "$front_matter" | sed '/^---$/a title: "'"$title"'"')
+    fi
+    
+    # image 필드 확인 (이미지가 있는 경우 추가)
+    if ! grep -q "^image:" <<<"$front_matter"; then
+      # 첫 번째 이미지 찾기
+      first_image=$(grep -o -m 1 "!\[\[.*\]\]" "$file" | sed 's/!\[\[\(.*\)\]\]/\1/g')
+      if [ -n "$first_image" ]; then
+        img_name=$(basename "$first_image")
+        front_matter=$(echo "$front_matter" | sed '/^---$/a image: "images/blog/'"$img_name"'"')
+      fi
     fi
     
     # 최종 내용 조합
@@ -154,12 +175,21 @@ for file in $to_publish_files; do
       content_without_title="$content"
     fi
     
+    # 첫 번째 이미지 찾기
+    first_image=$(grep -o -m 1 "!\[\[.*\]\]" "$file" | sed 's/!\[\[\(.*\)\]\]/\1/g')
+    image_line=""
+    if [ -n "$first_image" ]; then
+      img_name=$(basename "$first_image")
+      image_line="image: \"images/blog/$img_name\""
+    fi
+    
     # 프론트매터 추가
     date=$(date +"%Y-%m-%d")
     final_content="---
-title: \"$safe_title\"
+title: \"$title\"
 date: $date
 draft: false
+$image_line
 ---
 
 $content_without_title"

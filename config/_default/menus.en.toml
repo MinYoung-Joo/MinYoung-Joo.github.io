@@ -12,38 +12,39 @@ url = "/about"
 weight = 2
 
 [[main]]
-name = "Elements"
-url = "/elements"
+name = "Blog"
+url = "/blog"
 weight = 3
 
 [[main]]
-weight = 4
-name = "Pages"
-
-[[main]]
-parent = "Pages"
-name = "Blog"
-url = "/blog"
-
-[[main]]
-parent = "Pages"
 name = "Contact"
 url = "/contact"
+weight = 4
 
-[[main]]
-parent = "Pages"
-name = "Authors"
-url = "/authors"
+# Elements 및 Pages 메뉴들은 주석 처리 (보존용)
+# [[main]]
+# name = "Elements"
+# url = "/elements"
+# weight = 5
 
-[[main]]
-parent = "Pages"
-name = "Categories"
-url = "/categories"
+# [[main]]
+# weight = 6
+# name = "Pages"
 
-[[main]]
-parent = "Pages"
-name = "404 Page"
-url = "/404"
+# [[main]]
+# parent = "Pages"
+# name = "Authors"
+# url = "/authors"
+
+# [[main]]
+# parent = "Pages"
+# name = "Categories"
+# url = "/categories"
+
+# [[main]]
+# parent = "Pages"
+# name = "404 Page"
+# url = "/404"
 
 
 # footer menu
@@ -53,11 +54,21 @@ url = "/about"
 weight = 1
 
 [[footer]]
-name = "Elements"
-url = "/elements"
+name = "Blog"
+url = "/blog"
 weight = 2
+
+[[footer]]
+name = "Contact"
+url = "/contact"
+weight = 3
 
 [[footer]]
 name = "Privacy Policy"
 url = "/privacy-policy"
-weight = 3
+weight = 4
+
+# [[footer]]
+# name = "Elements"
+# url = "/elements"
+# weight = 5

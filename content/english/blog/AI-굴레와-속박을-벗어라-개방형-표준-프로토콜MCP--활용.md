@@ -1,6 +1,6 @@
 ---
 title: "AI, 굴레와 속박을 벗어라-개방형 표준 프로토콜(MCP)  활용"
-date: 2025-03-08
+date: 2025-03-10
 draft: false
 image: "images/blog/1741329758693.png"
 ---

@@ -1,9 +1,14 @@
 ---
-title: "Hey, I am John Doe!"
+title: "안녕하세요, 주민영입니다!"
 meta_title: "About"
-description: "this is meta description"
-image: "/images/avatar.png"
+description: "AI 엔지니어 및 인공지능 전문가 주민영의 소개 페이지입니다"
+image: "/images/about/profile.jpg"
 draft: false
 ---
 
-Lorem ipsum dolor sit amet consectetur adipisicing elit. Corporis illum nesciunt commodi vel nisi ut alias excepturi ipsum, totam, labore tempora, odit ex iste tempore sed. Fugit voluptatibus perspiciatis assumenda nulla ad nihil, omnis vel, doloremque sit quam autem optio maiores, illum eius facilis et quo consectetur provident dolor similique! Enim voluptatem dicta expedita veritatis repellat dolorum impedit, provident quasi at.
+저는 검색 증강 생성(RAG)과 에이전트 시스템에 전문성을 갖춘 AI 엔지니어로서, 인공지능의 이론적 원리를 깊이 이해하고 실생활 문제 해결에 널리 적용하고자 노력합니다. 기술 자체보다 그 기술이 인간에게 어떤 가치를 줄 수 있는지에 집중하며, 특히 멀티모달 모델과 에이전트 기술의 융합을 통해 더 정확하고 유용한 AI 시스템 구축에 관심이 있습니다. 새로운 아이디어를 탐구하고 혁신적인 솔루션을 개발하는 과정에서 동료들과 지식을 공유하고 협업하는 것을 즐깁니다. 
+
+함께 만들어가는 미래에 기여하고 싶습니다.
+
+## Contact  
+Email: **ezoomin.utos@gmail.com**

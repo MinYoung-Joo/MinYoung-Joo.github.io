@@ -1,6 +1,6 @@
 ---
 title: "옵시디언에서 github.io 블로그로 원하는 글만 선택적으로 발행하기"
-date: 2025-03-08
+date: 2025-03-10
 draft: false
 image: "images/blog/스크린샷 2025-03-08 오후 10.11.36.png"
 ---
@@ -223,7 +223,7 @@ for file in "${to_publish_array[@]}"; do
   image_line=""
   dir=$(dirname "$file")
   
-  # 옵시디언 위키 스타일 이미지 찾기 ({{< image src="images/blog/filename.png" >}})
+  # 옵시디언 위키 스타일 이미지 찾기
   found_images=()
   while IFS= read -r line; do
     if [[ "$line" == *"![["* ]]; then
@@ -332,7 +332,7 @@ for file in "${to_publish_array[@]}"; do
   
   # 이미지 태그 변환 실행 - 모든 옵시디언 위키 링크를 Hugo 이미지 태그로 변환
   for img_name in "${found_images[@]}"; do
-    temp_content=$(echo "$temp_content" | sed "s|!\\[\\[$img_name\\]\\]|{{< image src=\"images/blog/$img_name\" >}}|g")
+    temp_content=$(echo "$temp_content" | sed "s|!\\[\\[$img_name\\]\\]|" 여기에 이미지 경로 추가"|g")
   done
   
   # 최종 내용 저장

@@ -16,11 +16,6 @@ name = "Blog"
 url = "/blog"
 weight = 3
 
-[[main]]
-name = "Contact"
-url = "/contact"
-weight = 4
-
 # Elements 및 Pages 메뉴들은 주석 처리 (보존용)
 # [[main]]
 # name = "Elements"
@@ -57,16 +52,6 @@ weight = 1
 name = "Blog"
 url = "/blog"
 weight = 2
-
-[[footer]]
-name = "Contact"
-url = "/contact"
-weight = 3
-
-[[footer]]
-name = "Privacy Policy"
-url = "/privacy-policy"
-weight = 4
 
 # [[footer]]
 # name = "Elements"

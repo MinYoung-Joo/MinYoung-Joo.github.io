@@ -1,1 +1,54 @@
 /* Add your own custom styles here */
+
+/* Make Contact heading larger */
+h2 {
+  font-size: 1.75rem !important;
+}
+
+/* Improve code block readability in light mode */
+:root:not(.dark) .content pre {
+  background-color: #f0f0f0 !important;
+  color: #333 !important;
+}
+
+:root:not(.dark) .content pre code {
+  color: #333 !important;
+}
+
+:root:not(.dark) .content pre .hljs-keyword,
+:root:not(.dark) .content pre .hljs-function,
+:root:not(.dark) .content pre .hljs-string,
+:root:not(.dark) .content pre .hljs-title,
+:root:not(.dark) .content pre .hljs-params,
+:root:not(.dark) .content pre .hljs-number,
+:root:not(.dark) .content pre .hljs-comment,
+:root:not(.dark) .content pre .hljs-built_in {
+  color: #000 !important;
+}
+
+:root:not(.dark) .content pre .hljs-string {
+  color: #0b6e33 !important;
+}
+
+:root:not(.dark) .content pre .hljs-keyword {
+  color: #0b4f79 !important;
+}
+
+:root:not(.dark) .content pre .hljs-function {
+  color: #a71d5d !important;
+}
+
+:root:not(.dark) .content pre .hljs-comment {
+  color: #5c6370 !important;
+  font-style: italic;
+}
+
+:root:not(.dark) .content pre .hljs-number {
+  color: #986801 !important;
+}
+
+/* Inline code style for light mode */
+:root:not(.dark) .content code:not([class*="language-"]) {
+  background-color: #f0f0f0 !important;
+  color: #333 !important;
+}

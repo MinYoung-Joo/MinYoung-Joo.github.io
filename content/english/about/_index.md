@@ -2,7 +2,7 @@
 title: "안녕하세요, 주민영입니다!"
 meta_title: "About"
 description: "AI 엔지니어 및 인공지능 전문가 주민영의 소개 페이지입니다"
-image: "/images/about/profile.jpg"
+image: "/images/about/profile.png"
 draft: false
 ---
 

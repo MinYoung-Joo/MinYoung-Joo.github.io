@@ -62,17 +62,18 @@ content = "You must replace the **baseURL** in **hugo.toml** file when deploying
 # seo meta data for OpenGraph / Twitter Card
 # seo module: https://github.com/gethugothemes/hugo-modules/tree/master/seo-tools/basic-seo
 [metadata]
-keywords = ["Boilerplate", "Hugo"]
-description = "Hugo & Tailwindcss Starter"
-author = "zeon.studio"
-twitter = "zeon_studio"
+keywords = ["AI", "인공지능", "RAG", "LLM", "에이전트", "Agent"]
+description = "AI 엔지니어 주민영의 기술 블로그"
+author = "주민영"
+twitter = ""
 image = "images/og-image.png"
 
 
 # site verifications
 # verification module: https://github.com/gethugothemes/hugo-modules/tree/master/seo-tools/site-verifications
 [site_verification]
-google = ""   # Your verification code
+google = "GOOGLE_VERIFICATION_CODE_HERE"   # 실제 코드로 교체 필요
+naver = "NAVER_VERIFICATION_CODE_HERE"     # 실제 코드로 교체 필요
 bing = ""     # Your verification code
 baidu = ""    # Your verification code
 facebook = "" # Your verification code

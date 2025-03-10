@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://myjoo.github.io/sitemap.xml
